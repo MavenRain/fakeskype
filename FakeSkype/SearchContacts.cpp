@@ -596,7 +596,7 @@ void TestInitialPing(CLocation Local_Node)
 
 	c.Locations = new list<CLocation>;
 	c.Locations->push_back(ContactLocation);
-	InitialPing(Local_Node, "aXXXXXXXXXX", &c, "aXXXXXXXX");
+	InitialPing(Local_Node, "XXXXXXXXX", &c, "XXXXXXXXX");
 }
 
 void	InitialPingOnLine(CLocation Local_Node, char *User)

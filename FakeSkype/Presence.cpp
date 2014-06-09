@@ -58,6 +58,59 @@ void	BuildLocationBlob(CLocation Location, uchar *Buffer)
 		pLoc->addrs[2].ip = inet_addr(Location.PVAddr.ip);
 		pLoc->addrs[2].port = htons(Location.PVAddr.port);
 	}
+
+/*
+	uchar *start = Buffer;
+
+	*(unsigned int *)Buffer = *(unsigned int *)Location.NodeID;
+	*(unsigned int *)(Buffer + 4) = *(unsigned int *)(Location.NodeID + 4);
+	Buffer += NODEID_SZ;
+
+	*Buffer++ = Location.bHasPU;
+
+	// Assumption:
+	// Maybe this is the index to where to start search and it's over when you either hit 00 address or end of routing info?
+	if (Location.bHasPU)
+	{
+		// Local - Supernode - External IP
+		*(unsigned int *)Buffer = inet_addr(Location.PVAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.PVAddr.port);
+		Buffer += sizeof(unsigned short);
+
+		*(unsigned int *)Buffer = inet_addr(Location.SNAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.SNAddr.port);
+		Buffer += sizeof(unsigned short);
+
+		if (Location.BlobSz > Buffer - start)
+		{
+			*(unsigned int *)Buffer = inet_addr(Location.PUAddr.ip);
+			Buffer += sizeof(unsigned int);
+			*(unsigned short *)Buffer = htons(Location.PUAddr.port);
+			Buffer += sizeof(unsigned short);
+		}
+	}
+	else
+	{
+		// Supernode - 0 - Local ??
+		// But there also is: External - Supernode - Local??
+		*(unsigned int *)Buffer = inet_addr(Location.SNAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.SNAddr.port);
+		Buffer += sizeof(unsigned short);
+
+		*(unsigned int *)Buffer = inet_addr(Location.PUAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.PUAddr.port);
+		Buffer += sizeof(unsigned short);
+
+		*(unsigned int *)Buffer = inet_addr(Location.PVAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.PVAddr.port);
+		Buffer += sizeof(unsigned short);
+	}
+*/
 }
 
 void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)

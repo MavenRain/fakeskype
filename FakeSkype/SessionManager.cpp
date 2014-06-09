@@ -93,43 +93,11 @@ uint	BuildUserPacket(Host Relay, uchar **Buffer, ushort InternTID, ushort Cmd, A
 	Browser = TmpDatas;
 	Mark = Browser;
 
-#ifdef SKYPE5_FMT	// Currently not working
-	WriteValue(&Browser, 0x00);
-	WriteValue(&Browser, 0xA6);
-#else
 	WriteValue(&Browser, InternTID);
 	WriteValue(&Browser, Cmd);
-#endif
-	*Browser++ = RAW_PARAMS;
-
-#ifdef SKYPE5_FMT	// Currently not working
-	WriteValue(&Browser, 0x04);
-#else
-	WriteValue(&Browser, NbObj);
-#endif
-
-#ifdef SKYPE5_FMT	// Currently not working
-	Obj2Write.Family = OBJ_FAMILY_NBR;
-	Obj2Write.Id = 0x00;
-	Obj2Write.Value.Nbr = 0x02;
-	WriteObject(&Browser, Obj2Write);
-
-	Obj2Write.Family = OBJ_FAMILY_NBR;
-	Obj2Write.Id = 0x01;
-	Obj2Write.Value.Nbr = Cmd;
-	WriteObject(&Browser, Obj2Write);
-
-	Obj2Write.Family = OBJ_FAMILY_NBR;
-	Obj2Write.Id = 0x02;				// What is this???
-	Obj2Write.Value.Nbr = InternTID;	// Maybe it's InternTID?
-	WriteObject(&Browser, Obj2Write);
-
-	*Browser++ = OBJ_FAMILY_OBJLIST;
-	WriteValue(&Browser, 0x03);
 
 	*Browser++ = RAW_PARAMS;
 	WriteValue(&Browser, NbObj);
-#endif
 
 	va_start(ap, NbObj);
 
@@ -147,12 +115,10 @@ uint	BuildUserPacket(Host Relay, uchar **Buffer, ushort InternTID, ushort Cmd, A
 
 	Size = (uint)(Browser - Mark);
 
-showmem(Mark, Size);
-
 	((uint *)AesStream->ivec)[0] = htonl(AesStream->AesSalt);
 	((uint *)AesStream->ivec)[1] = htonl(AesStream->AesSalt);
 	((uint *)AesStream->ivec)[3] = htonl(AesStream->IvecIdx << 0x10);
-	AES_ctr128_encrypt(Mark, Mark, Size, &(AesStream->Key), AesStream->ivec, AesStream->ecount_buf, &(AesStream->Idx));
+	DEBUG_AES_ctr128_encrypt(Mark, Mark, Size, &(AesStream->Key), AesStream->ivec, AesStream->ecount_buf, &(AesStream->Idx));
 	AesStream->Idx = 0;
 	AesStream->IvecIdx++;
 
@@ -359,7 +325,7 @@ int	PeerAuthEnd(Host Relay)
 	AES_set_encrypt_key(AesKeyInitBlob, 256, &(SessionProposal->AesStream->Key));
 
 	((uint *)(SessionProposal->AesStream->ivec))[3] = htonl(SessionProposal->AesStream->IvecIdx << 0x10);
-	AES_ctr128_encrypt(Mark, Mark, Size, &(SessionProposal->AesStream->Key), &(SessionProposal->AesStream->ivec)[0], &(SessionProposal->AesStream->ecount_buf)[0], &(SessionProposal->AesStream->Idx));
+	DEBUG_AES_ctr128_encrypt(Mark, Mark, Size, &(SessionProposal->AesStream->Key), &(SessionProposal->AesStream->ivec)[0], &(SessionProposal->AesStream->ecount_buf)[0], &(SessionProposal->AesStream->Idx));
 	SessionProposal->AesStream->IvecIdx++;
 
 	Crc32 = crc32(Mark, Size, -1);
@@ -499,7 +465,7 @@ int	PeerAuth(Host Relay)
 	ushort		Crc16 = 0;
 	ushort		InternTID, TrickyID;
 	Memory_U	SolvedChall;
-	ObjectDesc	ObjNbr, ObjLocation, ObjPeerChallenge, ObjDirBlob, ObjChallenge, ObjAddr;
+	ObjectDesc	ObjNbr, ObjLocation, ObjPeerChallenge, ObjDirBlob, ObjChallenge;
 
 	Browser = AuthDatas;
 
@@ -516,7 +482,7 @@ int	PeerAuth(Host Relay)
 	WriteValue(&Browser, 0x44);
 
 	*Browser++ = RAW_PARAMS;
-	WriteValue(&Browser, 0x0E - 1);	// -1 as not both relays are sent but only the first one
+	WriteValue(&Browser, 0x0E);
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
 	ObjNbr.Id = 0x03;
@@ -541,29 +507,8 @@ int	PeerAuth(Host Relay)
 	ObjNbr.Value.Nbr = 0x07;		//NAT TYPE
 	WriteObject(&Browser, ObjNbr);
 
-	// We cannot do this, as when we are using the second relay, the relayinfos of the first relay would
-	// be copied here and relay then times out!
-	//memcpy_s(Browser, 0xFFF, SessionProposal->RelaysInfos.Memory, SessionProposal->RelaysInfos.MsZ);
-	//Browser += SessionProposal->RelaysInfos.MsZ;
-*Browser++ = OBJ_FAMILY_OBJLIST;
-*Browser++ = 0x07;
-*Browser++ = RAW_PARAMS;
-*Browser++ = 0x03;
-
-ObjNbr.Family = OBJ_FAMILY_NBR;
-ObjNbr.Id = OBJ_ID_PEERSESSID;
-ObjNbr.Value.Nbr = Relay.SessionID2Declare;
-WriteObject(&Browser, ObjNbr);
-
-ObjAddr.Family = OBJ_FAMILY_NETADDR;
-ObjAddr.Id = OBJ_ID_RELAY;
-ObjAddr.Value.Addr = Relay;
-WriteObject(&Browser, ObjAddr);
-
-ObjNbr.Family = OBJ_FAMILY_NBR;
-ObjNbr.Id = OBJ_ID_LPORT;
-ObjNbr.Value.Nbr = Relay.seqNum;
-WriteObject(&Browser, ObjNbr);
+	memcpy_s(Browser, 0xFFF, SessionProposal->RelaysInfos.Memory, SessionProposal->RelaysInfos.MsZ);
+	Browser += SessionProposal->RelaysInfos.MsZ;
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
 	ObjNbr.Id = 0x16;
@@ -631,7 +576,7 @@ showmem(Mark, Size);
 	AES_set_encrypt_key(AesKeyInitBlob, 256, &(SessionProposal->AesStream->Key));
 	
 	((uint *)(SessionProposal->AesStream->ivec))[3] = htonl(SessionProposal->AesStream->IvecIdx << 0x10);
-	AES_ctr128_encrypt(Mark, Mark, Size, &(SessionProposal->AesStream->Key), &(SessionProposal->AesStream->ivec)[0], &(SessionProposal->AesStream->ecount_buf)[0], &(SessionProposal->AesStream->Idx));
+	DEBUG_AES_ctr128_encrypt(Mark, Mark, Size, &(SessionProposal->AesStream->Key), &(SessionProposal->AesStream->ivec)[0], &(SessionProposal->AesStream->ecount_buf)[0], &(SessionProposal->AesStream->Idx));
 	SessionProposal->AesStream->IvecIdx++;
 
 	Crc32 = crc32(Mark, Size, -1);

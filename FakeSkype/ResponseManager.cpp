@@ -116,7 +116,7 @@ UnTouchAES:
 	((uint *)AesStream->ivec)[0] = htonl(AesStream->AesSalt);
 	((uint *)AesStream->ivec)[1] = htonl(AesStream->AesSalt);
 	((uint *)AesStream->ivec)[3] = htonl(AesStream->IvecIdx << 0x10);
-	AES_ctr128_encrypt(*Buffer, *Buffer, PacketSz - 2, &(AesStream->Key), AesStream->ivec, AesStream->ecount_buf, &(AesStream->Idx));
+	DEBUG_AES_ctr128_encrypt(*Buffer, *Buffer, PacketSz - 2, &(AesStream->Key), AesStream->ivec, AesStream->ecount_buf, &(AesStream->Idx));
 
 	AesStream->Idx = 0;
 	AesStream->IvecIdx++;

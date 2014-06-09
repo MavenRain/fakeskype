@@ -42,10 +42,7 @@ static void DumpBuffer(unsigned char *buffer, unsigned char *pBuf)
 					ManageObjects(&Blob, Response.Objs[Idx].Value.Memory.MsZ, &BlobR);
 					for (IdxSub = 0; IdxSub < BlobR.NbObj; IdxSub++)
 					{
-						// To visually indent
-						ObjectDesc Object = BlobR.Objs[IdxSub];
-						Object.ObjListInfos.Rank++;
-						DumpObj(Object);
+						DumpObj(BlobR.Objs[IdxSub]);
 					}
 				}
 			}
@@ -90,87 +87,31 @@ int			main(int argc, char* argv[])
 {
 	WORD	wVersionRequested;
 	WSADATA wsaData;
-	int		err, account;
+	int		err;
 	char	*User, *Pass;
 
 	BYTE TestBuf[32]={0}, *PRequest=TestBuf;
 	short sVal;
 
+	FILE *fp;
+
 	//WriteValue(&PRequest, 0x148 + 0x48);
 	//WriteValue(&PRequest, 0x14E + 0x46 + 0x4D);
 	//WriteValue(&PRequest, (0x190+0x2) *2);
-	//WriteValue(&PRequest, 0x6D);
+	//WriteValue(&PRequest, 0x1E1);
 
-	//TestBuf[0]=0x8F;
-	//TestBuf[1]=0x09;
-	//ReadValue(&PRequest, &sVal);
+	TestBuf[0]=0x8F;
+	TestBuf[1]=0x09;
+	ReadValue(&PRequest, &sVal);
 
+	//DumpSkypeTraffic ("F:\\Skype.Reverse.Engineered\\traffic.txt");
+	//return 0;
 
-	//TestBuf[0]=0x00;
-	//TestBuf[1]=0xA6;
-	//TestBuf[2]=0x01;
-	//ReadValue(&PRequest, &sVal);
+	//User = "notnowagainplease";
+	//Pass = "XXXXXX";
 
-	DumpSkypeTraffic ("F:\\Skype.Reverse.Engineered\\traffic.txt");
-	return 0;
-
-	account = 0;
-
-	if (account == 0)
-	{
-		User = "oj.med"; 
-		Pass = "canastas";
-	}
-	else if (account == 1)
-	{
-		User = "mysegfault"; 
-		Pass = "epitech";
-	}
-	else if (account == 2)
-	{
-		User = "chien.lunatic"; 
-		Pass = "canastas";
-	}
-	else if (account == 3)
-	{
-		User = "courausarah1";
-		Pass = "ibounanta";
-	}
-	else if (account == 4)
-	{
-		User = "james.de.meza"; 
-		Pass = "cognac48";
-	}
-	else if (account == 5)
-	{
-		User = "phet78"; 
-		Pass = "phet1461";
-	}
-	else if (account == 6)
-	{
-		User = "anne.fleur1984"; 
-		Pass = "petipengouin";
-	}
-	else if (account == 7)
-	{
-		User = "oj.med.perm"; 
-		Pass = "canastas";
-	}
-	else if (account == 8)
-	{
-		User = "oj.prez"; 
-		Pass = "canastas";
-	}
-	else if (account == 9)
-	{
-		User = "oj.one"; 
-		Pass = "canastas";
-	}
-	else if (account == 10)
-	{
-		User = "oj.two"; 
-		Pass = "canastas";
-	}
+	//User = "themagicforyou";
+	//Pass = "XXXXXX";
 
 	wVersionRequested = MAKEWORD(2, 2);
 	err = WSAStartup(wVersionRequested, &wsaData);
@@ -180,8 +121,19 @@ int			main(int argc, char* argv[])
 		return (0xBADF00D);
 	}
 
-	//FIXED NODEID
 
+
+	// init log file
+	fp = fopen("_logdump.txt","w");
+	if (fp == NULL){
+		perror("Open failed on input file2");
+		exit(1);
+	};
+	fprintf(fp, "");
+    fclose(fp);
+
+
+	//FIXED NODEID
 	InitLocalNode();
 
 	HostScan(&Session_Node);

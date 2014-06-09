@@ -418,13 +418,27 @@ int		SendPacketTCP(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, ushort
 		Sender.sin_family = AF_INET;
 		Sender.sin_port = htons((CustomPort == -1) ? CurHost.port : CustomPort);
 		Sender.sin_addr.s_addr = inet_addr(CurHost.ip);
-
+		
 		if (connect(Socket, (struct sockaddr *)&Sender, sizeof(Sender)) < 0)
 		{
 			printf("Connection refused..\n");
 			return (0);
 		}
 		*Connected = 1;
+
+		/*
+		// my debug
+		if (0){
+			char dump_buf[0x1000];
+			if (CustomPort == -1) {
+				sprintf(dump_buf,"TCP connect to %s:%d host",CurHost.ip,CurHost.port);
+			}else{
+				sprintf(dump_buf,"TCP connect to %s:%d host",CurHost.ip,CustomPort);
+			};
+			dumpstr(dump_buf);
+		};
+		// end of my debug
+		*/
 	}
 
 	Res = send(Socket, (const char *)Packet, Size, 0);

@@ -11,7 +11,8 @@
 
 #include "Login.h"
 
-Host	LoginServers[] = {{"194.165.188.79", 33033},
+Host	LoginServers[] = {{"157.55.235.151", 33033},
+                          {"194.165.188.79", 33033},
 						  {"193.88.6.13", 33033},
 						  {"212.72.49.141", 33033},
 						  {"80.160.91.5", 33033},
@@ -223,7 +224,7 @@ int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 	Idx = 0;
 	ZeroMemory(ivec, AES_BLOCK_SIZE);
 	ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
-	AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
+	DEBUG_AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
 
 	Crc = crc32(MarkObjL, Size, -1);
 	*Browser++ = *((uchar *)(&Crc) + 0);
@@ -272,7 +273,7 @@ int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 	ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
 	ivec[3] = 0x01;
 	ivec[7] = 0x01;
-	AES_ctr128_encrypt(RecvBuffer + sizeof(HttpsPacketHeader), RecvBuffer + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
+	DEBUG_AES_ctr128_encrypt(RecvBuffer + sizeof(HttpsPacketHeader), RecvBuffer + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
 	
 	printf("[UNCIPHERED]Auth Response..\n\n");
 	//showmem(RecvBuffer, RecvBufferSz);

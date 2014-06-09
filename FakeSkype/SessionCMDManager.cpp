@@ -195,7 +195,7 @@ WriteObject(&RCDBrowser, RCDObjNbr);
 
 RCDObjNbr.Family = OBJ_FAMILY_NBR;
 RCDObjNbr.Id = 0x0A;
-RCDObjNbr.Value.Nbr = 0xFFFFFFFF;
+RCDObjNbr.Value.Nbr = 0x00000123;
 WriteObject(&RCDBrowser, RCDObjNbr);
 
 RCDObjNbr.Family = OBJ_FAMILY_NBR;

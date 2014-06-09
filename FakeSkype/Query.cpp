@@ -292,11 +292,6 @@ void	HandleQuery(Host Session_SN, uchar *Query, int Size)
 							printf("Session To Declare on this relay : 0x%x\n", Response.Objs[Idx].Value.Nbr);
 							Relay.SessionID2Declare = Response.Objs[Idx].Value.Nbr;
 							State += 1;
-							break;
-						case OBJ_ID_LPORT:
-							// Abusing seqNum field for LPORT
-							Relay.seqNum = Response.Objs[Idx].Value.Nbr;
-							break;
 						default:
 							break;
 						}

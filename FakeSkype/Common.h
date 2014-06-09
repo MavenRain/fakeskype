@@ -430,5 +430,11 @@ int _snprintf_s(
 );
 #define strcat_s(a,b,c) strcat(a,c) 
 
+
+void dumpmem(unsigned char *Mem, unsigned int Sz, char *logtext);
+void dumpstr(char *logtext);
+void DEBUG_AES_ctr128_encrypt(unsigned char *in, unsigned char *out, unsigned long length, AES_KEY *key, unsigned char *ivec, unsigned char *ecount_buf, unsigned int *num);
+
+
 #endif /*COMMON_H*/
 

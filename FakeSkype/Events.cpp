@@ -188,7 +188,7 @@ int		SendAuthentificationBlobES(Host *CurES, char *User, char *Pass)
 	Idx = 0;
 	ZeroMemory(ivec, AES_BLOCK_SIZE);
 	ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
-	AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
+	DEBUG_AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
 
 	Crc = crc32(MarkObjL, Size, -1);
 	*Browser++ = *((uchar *)(&Crc) + 0);
@@ -220,7 +220,7 @@ int		SendAuthentificationBlobES(Host *CurES, char *User, char *Pass)
 		ivec[3] = 0x01;
 		ivec[7] = 0x01;
 		((uint *)ivec)[3] = htonl(IvecIdx << 0x10);
-		AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
+		DEBUG_AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
 		IvecIdx++;
 		AESsZ += sizeof(HttpsPacketHeader) + htons(HSHeader->ResponseLen);
 	}
@@ -366,7 +366,7 @@ uchar					*RequestHashList(Host *CurES, char *User, char *Pass, uint *NbHashes)
 	Idx = 0;
 	ZeroMemory(ivec, AES_BLOCK_SIZE);
 	ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
-	AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
+	DEBUG_AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
 
 	Crc = crc32(MarkObjL, Size, -1);
 	*Browser++ = *((uchar *)(&Crc) + 0);
@@ -398,7 +398,7 @@ uchar					*RequestHashList(Host *CurES, char *User, char *Pass, uint *NbHashes)
 		ivec[3] = 0x01;
 		ivec[7] = 0x01;
 		((uint *)ivec)[3] = htonl(IvecIdx << 0x10);
-		AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
+		DEBUG_AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
 		IvecIdx++;
 		AESsZ += sizeof(HttpsPacketHeader) + htons(HSHeader->ResponseLen);
 	}
@@ -553,7 +553,7 @@ void	RequestHashListDetails(Host *CurES, char *User, char *Pass, uint *HashList,
 			Idx = 0;
 			ZeroMemory(ivec, AES_BLOCK_SIZE);
 			ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
-			AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
+			DEBUG_AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
 
 			Crc = crc32(MarkObjL, Size, -1);
 			*Browser++ = *((uchar *)(&Crc) + 0);
@@ -586,7 +586,7 @@ void	RequestHashListDetails(Host *CurES, char *User, char *Pass, uint *HashList,
 			ivec[3] = 0x01;
 			ivec[7] = 0x01;
 			((uint *)ivec)[3] = htonl(IvecIdx << 0x10);
-			AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
+			DEBUG_AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
 			IvecIdx++;
 
 			uchar		*Buffer;
