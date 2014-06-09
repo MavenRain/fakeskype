@@ -237,12 +237,6 @@ typedef struct
 {
 	uint	Family;
 	uint	Id;
-	typedef struct
-	{
-		int		Id;
-		uint	Rank;
-	}			ObjListInfos_S;
-	ObjListInfos_S	ObjListInfos;
 	typedef union
 	{
 		Memory_U	Memory;
@@ -251,6 +245,12 @@ typedef struct
 		Host	Addr;
 	}			Value_U;
 	Value_U	Value;
+	typedef struct
+	{
+		int		Id;
+		uint	Rank;
+	}			ObjListInfos_S;
+	ObjListInfos_S	ObjListInfos;
 }	ObjectDesc;
 
 typedef struct
@@ -276,6 +276,7 @@ typedef struct
 	uchar		NodeID[8];
 	uchar		bHasPU;	// Has Public address? Determines order of location Info
 	Host		SNAddr;	// Supernode address
+	uint		PeerLPort;	// Peer listening port
 	Host		PVAddr;	// Private (LAN) address
 	Host		PUAddr;	// Public (external) address
 	uint		OnLineNode;

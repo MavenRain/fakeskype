@@ -1001,7 +1001,7 @@ EndTest:
 	UncipherObfuscatedTCPCtrlPH(RecvBuffer);
 
 	RHeader = (TCPCtrlPacketHeader *)RecvBuffer;
-	if ((htonl(RHeader->Cookie_1) == 0x01) && (htonl(RHeader->Cookie_2) == 0x03))
+	if ((htonl(RHeader->Cookie_1) == 0x01) /*&& (htonl(RHeader->Cookie_2) == 0x03)*/)
 	{
 		printf("Remote Seed : 0x%x\n", htonl(RHeader->Seed));
 		
@@ -1009,7 +1009,7 @@ EndTest:
 		CipherTCP(&(RelayKeys.RecvStream), RecvBuffer + sizeof(TCPCtrlPacketHeader) - 2, RecvBufferSz - sizeof(TCPCtrlPacketHeader) + 2);
 
 		printf("Key Exchange Response [Decrypted]..\n");
-		//showmem(RecvBuffer, RecvBufferSz);
+		showmem(RecvBuffer, RecvBufferSz);
 		printf("\n\n");
 
 		printf("Keys Pair Initialized..\n");

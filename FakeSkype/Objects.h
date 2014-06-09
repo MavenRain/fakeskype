@@ -116,7 +116,26 @@
 #define OBJ_ID_LOCNODEID	0x20	// Local node ID (OBJ_FAMILY_TABLE) ?
 */
 
+typedef struct _skype_thing
+{
+	u32				type, id, wParam, lParam;
+} skype_thing;
+typedef struct _skype_list
+{
+	struct _skype_list	*next;
+	skype_thing			*thing;
+	u32					allocated_things;
+	u32					things;
+} skype_list;
+
 void	    WriteObject(uchar **Buffer, ObjectDesc Object);
+
+unsigned int WriteObjects(int type, uchar **Buffer, skype_thing *mythings, int mythings_len);
+#define WriteObjects_(type,Buffer,mythings) WriteObjects(type, Buffer, mythings, sizeof(mythings)/sizeof(mythings[0]))
+unsigned int SizeObjects(int type, skype_thing *mythings, int mythings_len);
+#define SizeObjects_(type,mythings) SizeObjects(type, mythings, sizeof(mythings)/sizeof(mythings[0]))
+#define DECL_OBJLIST(nam,mythings) skype_list		nam = {&nam, mythings, sizeof(mythings)/sizeof(mythings[0]), sizeof(mythings)/sizeof(mythings[0])};
+
 void		DumpObj(ObjectDesc Object);
 ObjectDesc	*GetObjByID(SResponse Response, uint ID, uint ObjLID, uint ObjRank);
 uint		DefNbObjList(SResponse Response);

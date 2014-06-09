@@ -310,6 +310,7 @@ void	OnClientAccept(CLocation *Local_Node)
 				break;
 			case OBJ_ID_PEERLPORT:
 				printf("Peer Listenning Port : %d\n", Response.Objs[Idx].Value.Nbr);
+				Local_Node->PeerLPort = Response.Objs[Idx].Value.Nbr;
 				break;
 			case OBJ_ID_PUBNETADDR:
 				Local_Node->PUAddr = Response.Objs[Idx].Value.Addr;

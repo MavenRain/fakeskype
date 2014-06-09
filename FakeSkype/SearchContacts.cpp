@@ -401,13 +401,60 @@ int	InitialPing(CLocation Local_Node, char *User, Contact *ContactSH, char *User
 		PRequest = Request + sizeof(*PHeader);
 		Mark = PRequest;
 
+		/* FIXME: This should work too, so that we can send as 0x42, but as long as the other code works,
+		          we have other priorities...
+		 */
+#if 0
+		{
+			uchar	PeerNode[LOCATION_SZ] = {0}, LocalNode[LOCATION_SZ] = {0};
+
+			BuildLocationBlob (*Location, PeerNode);
+			// This location blob has the NodeID wrong.. I don't know if this just needs
+			// to be swapped here or if it gets parsed wrong, but until I find out, let's
+			// swap it like in the original code
+			*(unsigned int *)PeerNode = htonl(*(unsigned int *)PeerNode);
+			*(unsigned int *)(PeerNode + 4)= htonl(*(unsigned int *)(PeerNode + 4));
+
+			skype_thing userinfo[] = {
+				{OBJ_FAMILY_NBR    , 0x10, MyOnlineStatus, 0}
+			};
+			DECL_OBJLIST(lst_userinfo,userinfo);
+
+			skype_thing peers[] = {
+				{OBJ_FAMILY_STRING , 0x00, (u32)User2Search  , strlen(User2Search)},
+				{OBJ_FAMILY_STRING , 0x02, (u32)User         , strlen(User)},
+				{OBJ_FAMILY_OBJLIST, 0x04, (u32)&lst_userinfo, 0},
+				{OBJ_FAMILY_BLOB   , 0x0C, (u32)LocalNode    , Local_Node.BlobSz},
+				{OBJ_FAMILY_NBR    , 0x0F, 0x00              , 0},
+			};
+			DECL_OBJLIST(lst_peers,peers);
+
+			skype_thing req[] = {
+				{OBJ_FAMILY_NBR    , 0x00, 0x02           , 0},
+				{OBJ_FAMILY_BLOB   , 0x01, (u32)PeerNode  , Location->BlobSz},
+				{OBJ_FAMILY_NBR    , 0x02, 0x51           , 0},
+				{OBJ_FAMILY_OBJLIST, 0x03, (u32)&lst_peers, 0},
+				{OBJ_FAMILY_NBR    , 0x04, 0x1C           , 0}
+			};
+
+			BaseSz = SizeObjects_(EXT_PARAMS, req) + 2;
+			WriteValue(&PRequest, BaseSz);
+			WriteValue(&PRequest, 0x1AA);
+			*(unsigned short *)PRequest = htons(TransID - 1);
+			PRequest += 2;
+			WriteObjects_(EXT_PARAMS, &PRequest, req);
+		}
+#endif
+
+
+#if 1
 		WriteValue(&PRequest, BaseSz);
 		WriteValue(&PRequest, 0x1AA);
 		*(unsigned short *)PRequest = htons(TransID - 1);
 		PRequest += 2;
 
 		*PRequest++ = RAW_PARAMS;
-		WriteValue(&PRequest, 0x07);
+		WriteValue(&PRequest, 0x06);
 
 		ObjNbr.Family = OBJ_FAMILY_NBR;
 		ObjNbr.Id = 0x00;
@@ -427,23 +474,17 @@ int	InitialPing(CLocation Local_Node, char *User, Contact *ContactSH, char *User
 		ObjNode.Value.Memory.MsZ = Location->BlobSz;
 		WriteObject(&PRequest, ObjNode);
 
-		BuildLocationBlob (Local_Node, Node);
-		ObjNode.Family = OBJ_FAMILY_BLOB;
-		ObjNode.Id = 0x0C;
-		ObjNode.Value.Memory.Memory = Node;
-		ObjNode.Value.Memory.MsZ = Local_Node.BlobSz;
-		WriteObject(&PRequest, ObjNode);
 
 		ObjNbr.Family = OBJ_FAMILY_NBR;
 		ObjNbr.Id = 0x02;
 		ObjNbr.Value.Nbr = 0x51;
 		WriteObject(&PRequest, ObjNbr);
 
-		*PRequest++ = 0x05;
+		*PRequest++ = OBJ_FAMILY_OBJLIST;
 		WriteValue(&PRequest, 0x03);
 
 		*PRequest++ = RAW_PARAMS;
-		WriteValue(&PRequest, 0x04);
+		WriteValue(&PRequest, 0x05);
 
 		ObjUser.Family = OBJ_FAMILY_STRING;
 		ObjUser.Id = OBJ_ID_USER2SEARCH;
@@ -456,6 +497,13 @@ int	InitialPing(CLocation Local_Node, char *User, Contact *ContactSH, char *User
 		ObjUser.Value.Memory.Memory = (uchar *)User;
 		ObjUser.Value.Memory.MsZ = (int)strlen(User);
 		WriteObject(&PRequest, ObjUser);
+
+		BuildLocationBlob (Local_Node, Node);
+		ObjNode.Family = OBJ_FAMILY_BLOB;
+		ObjNode.Id = 0x0C;
+		ObjNode.Value.Memory.Memory = Node;
+		ObjNode.Value.Memory.MsZ = Local_Node.BlobSz;
+		WriteObject(&PRequest, ObjNode);
 
 		ObjNbr.Family = OBJ_FAMILY_NBR;
 		ObjNbr.Id = 0x0F;
@@ -477,7 +525,7 @@ int	InitialPing(CLocation Local_Node, char *User, Contact *ContactSH, char *User
 		ObjNbr.Id = 0x10;
 		ObjNbr.Value.Nbr = MyOnlineStatus;
 		WriteObject(&PRequest, ObjNbr);
-
+#endif
 
 		PSize = (uint)(PRequest - Mark);
 
@@ -548,7 +596,7 @@ void TestInitialPing(CLocation Local_Node)
 
 	c.Locations = new list<CLocation>;
 	c.Locations->push_back(ContactLocation);
-	InitialPing(Local_Node, "XXXXXX", &c, "XXXXXX");
+	InitialPing(Local_Node, "XXXXXXX", &c, "XXXXXXX");
 }
 
 void	InitialPingOnLine(CLocation Local_Node, char *User)

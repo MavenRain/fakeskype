@@ -555,7 +555,7 @@ void	Listen2SN(Host SN)
 {
 	fd_set			m_TCPSockets;
 	int				SelRes = 0;
-	int				Res = -1;
+	int				Res = -1, offset = 0;
 	uchar			Title[MAX_PATH] = {0};
 	uchar			Buffer[0x1000] = {0};
 	
@@ -574,7 +574,7 @@ void	Listen2SN(Host SN)
 	RecvBufferSz = 0;
 	while ((SelRes = select(FD_SETSIZE, &m_TCPSockets, NULL, NULL, NULL)))
 	{	
-		Res = recv(SN.socket, (char *)&(Buffer[0]), sizeof(Buffer), 0);
+		Res = recv(SN.socket, (char *)&(Buffer[offset]), sizeof(Buffer)-offset, 0);
 		if (Res == 0)
 		{
 			printf("Connection reset by peer !\n");
@@ -589,13 +589,26 @@ void	Listen2SN(Host SN)
 		{
 			printf("%d Bytes received from SN..\n", Res);
 			
-			CipherTCP(&(Keys.RecvStream), Buffer, Res);
+			CipherTCP(&(Keys.RecvStream), &(Buffer[offset]), Res);
 			
-			showmem(Buffer, Res);
+			showmem(&(Buffer[offset]), Res);
 			printf("\n\n");
 
 			if (Res > 4)
-				HandleQuery(SN, Buffer, Res);
+			{
+				HandleQuery(SN, Buffer, Res+offset);
+				offset = 0;
+			}
+			// FIXME: Currently we just reply with a ping to ping-requests to stay alive...
+			// It's better to send them periodicaly during inactivity, not on request
+			else if (offset == 0 && Res == 2 && Buffer[0]==0x03 && Buffer[1]==0x03)
+			{
+				CipherTCP(&Keys.SendStream, Buffer, 2);
+				NoWait = 1;
+				SendPacketTCP(SN.socket, SN, Buffer, 2, HTTPS_PORT, &(SN.Connected));
+				offset = 0;
+			}
+			else if (Res == 4) offset=Res;
 
 			/*uchar		*Browser;
 			SResponse	Response;
@@ -617,7 +630,7 @@ void	Listen2SN(Host SN)
 			//RecvBufferSz += Res;
 		}
 
-		ZeroMemory(Buffer, 0x1000);
+		if (!offset) ZeroMemory(Buffer, 0x1000);
 		FD_ZERO(&m_TCPSockets);
 		FD_SET(SN.socket, &m_TCPSockets);
 	}
@@ -658,7 +671,7 @@ void	SendAnnounce(ushort PacketID, SOCKET Socket, Host CurHost, ushort size, int
 	*((ushort*)pRequest) = htons(RPacketID);
 
 	printf("Sending Announce of packet 0x%x\n", PacketID);
-	//showmem(Buffer, sizeof(Buffer));
+	showmem(Buffer, sizeof(Buffer));
 
 	CipherTCP(&(HKeys->SendStream), Buffer, 3);
 	CipherTCP(&(HKeys->SendStream), Buffer + 3, sizeof(Buffer) - 3);

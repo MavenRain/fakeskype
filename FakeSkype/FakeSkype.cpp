@@ -96,9 +96,10 @@ int			main(int argc, char* argv[])
 	//WriteValue(&PRequest, 0x148 + 0x48);
 	//WriteValue(&PRequest, 0x14E + 0x46 + 0x4D);
 	//WriteValue(&PRequest, (0x190+0x2) *2);
+	//WriteValue(&PRequest, 0x1E1);
 
-	//TestBuf[0]=0xA9;
-	//TestBuf[1]=0x02;
+	//TestBuf[0]=0x96;
+	//TestBuf[1]=0x03;
 	//ReadValue(&PRequest, &sVal);
 
 	//DumpSkypeTraffic ("F:\\Skype.Reverse.Engineered\\traffic.txt");
@@ -108,59 +109,27 @@ int			main(int argc, char* argv[])
 
 	if (account == 0)
 	{
-		User = "oj.med"; 
-		Pass = "canastas";
+		User = "ojaXXXX"; 
+		Pass = "canXXXX";
 	}
 	else if (account == 1)
 	{
-		User = "mysegfault"; 
-		Pass = "epitech";
+		User = "mysXXX"; 
+		Pass = "epiXXX";
 	}
 	else if (account == 2)
 	{
-		User = "chien.lunatic"; 
-		Pass = "canastas";
+		User = "chiXXX"; 
+		Pass = "canXXX";
 	}
 	else if (account == 3)
 	{
-		User = "courausarah1";
-		Pass = "ibounanta";
-	}
-	else if (account == 4)
-	{
-		User = "james.de.meza"; 
-		Pass = "cognac48";
-	}
-	else if (account == 5)
-	{
-		User = "phet78"; 
-		Pass = "phet1461";
-	}
-	else if (account == 6)
-	{
-		User = "anne.fleur1984"; 
-		Pass = "petipengouin";
-	}
-	else if (account == 7)
-	{
-		User = "oj.med.perm"; 
-		Pass = "canastas";
-	}
-	else if (account == 8)
-	{
-		User = "oj.prez"; 
-		Pass = "canastas";
-	}
-	else if (account == 9)
-	{
-		User = "oj.one"; 
-		Pass = "canastas";
-	}
-	else if (account == 10)
-	{
-		User = "oj.two"; 
-		Pass = "canastas";
-	}
+		User = "couXXX";
+		Pass = "iboXXX";
+	};
+
+	User = "XXXXXXXX";
+	Pass = "XXXXXXXX";
 
 
 	wVersionRequested = MAKEWORD(2, 2);

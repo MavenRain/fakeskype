@@ -86,85 +86,85 @@ unsigned char *charsets[] = {
 	extd_chars, spec_chars, filling_chars
 };
 
-int lookup_table1[] = {
+unsigned short lookup_table1[] = {
 	0x000, 0x2A3, 0x37C, 0x67C, 0x6A3, 0x6AE, 0xA84, 0xB74, 0xDAD, 0xF5D, 0xFB2, 0xFD4, 0xFFF, 0x1000
 };
 
-int lookup_table2[] = {
+unsigned short lookup_table2[] = {
 	0x000, 0x123, 0x266, 0x2B4, 0x8A2, 0x9F5, 0xCFC, 0xF70, 0xFFF, 0x1000
 };
 
-int lookup_table3[] = {
+unsigned short lookup_table3[] = {
 	0x000, 0x14D, 0x34C, 0x42B, 0x4A3, 0x6CA, 0x953, 0x9C6, 0xA6C, 0xABB, 0xBAE, 0xC43, 0xC9B, 0xCDD, 0xD31, 0xD93,
 	0xDB5, 0x1000
 };
 
-int lookup_table4[] = {
+unsigned short lookup_table4[] = {
 	0x000, 0x1000
 };
 
-int lookup_table5[] = {
+unsigned short lookup_table5[] = {
 	0x000, 0x636, 0x9C8, 0xAED, 0xBE5, 0xCA5, 0xF0E, 0xF7C, 0xF83, 0xF8A, 0xFC2, 0x1000
 };
 
-int lookup_table6[] = {
+unsigned short lookup_table6[] = {
 	0x000, 0x229, 0x3E3, 0x550, 0x6B9, 0x816, 0x969, 0xAB9, 0xBB7, 0xCAE, 0xD8A, 0xE42, 0xEF7, 0xF87, 0xFF1, 0x1000
 };
 
-int lookup_table7[] = {
+unsigned short lookup_table7[] = {
 	0x000, 0x1E1, 0x470, 0xC5C, 0xE79, 0xE88, 0xE8F, 0xE96, 0xF57, 0xF5E, 0xF87, 0x1000
 };
 
-int lookup_table8[] = {
+unsigned short lookup_table8[] = {
 	0x000, 0x452, 0x899, 0xB87, 0xE15, 0xF61, 0x1000, 0x000, 0x000, 0x4B8, 0x8CB, 0xC89, 0xFC1, 0x1000
 };
 
-int lookup_table9[] = {
+unsigned short lookup_table9[] = {
 	0x000, 0x21D, 0x66A, 0x87E, 0xE9F, 0xEAF, 0xEB6, 0xEBD, 0xF97, 0xF9E, 0xFBF, 0x1000
 };
 
-int lookup_table10[] = {
+unsigned short lookup_table10[] = {
 	0x000, 0x4B8, 0x8CB, 0xC89, 0xFC1, 0x1000
 };
 
-int lookup_table11[] = {
+unsigned short lookup_table11[] = {
 	0x000, 0x3A9, 0x76F, 0xCBA, 0xE7F, 0xE8E, 0xE95, 0xE9C, 0xF85, 0xF8C, 0xFB4, 0x1000
 };
 
-int lookup_table12[] = {
+unsigned short lookup_table12[] = {
 	0x000, 0x241, 0x42A, 0x5E2, 0x775, 0x901, 0xA88, 0xBFD, 0xD58, 0xEB2, 0x1000
 };
 
-int lookup_table13[] = {
+unsigned short lookup_table13[] = {
 	0x000, 0x1D4, 0x1DB, 0x1E2, 0x1E9, 0xE93, 0xE9A, 0xEA1, 0xF31, 0xF38, 0xF3F, 0x1000
 };
 
-int lookup_table14[] = {
+unsigned short lookup_table14[] = {
 	0x000, 0x1A0, 0x2FA, 0x420, 0x539, 0x63B, 0x739, 0x836, 0x928, 0xA07, 0xAE6, 0xBB7, 0xC86, 0xD43, 0xDF2, 0xEA1, 
 	0xF2F, 0xF97, 0xFD8, 0xFF0, 0x1000
 };
 
-int lookup_table15[] = {
+unsigned short lookup_table15[] = {
 	0x000, 0xAB, 0x1E9, 0xB06, 0xC26, 0xC2D, 0xD68, 0xF05, 0xF4B, 0xF52, 0xFBD, 0x1000
 };
 
-int lookup_table16[] = {
+unsigned short lookup_table16[] = {
 	0x000, 0x5C8, 0x8DA, 0xBBD, 0xE2F, 0xF23, 0x1000
 };
 
-int lookup_table17[] = {
+unsigned short lookup_table17[] = {
 	0x000, 0x12E, 0x36D, 0x478, 0x898, 0x89F, 0xD91, 0xEC5, 0xF92, 0xF99, 0xFA9, 0x1000
 };
 
-int lookup_table18[] = {
+unsigned short lookup_table18[] = {
 	0x000, 0x1000
 };
 
-int lookup_table19[] = {
+unsigned short lookup_table19[] = {
 	0x000, 0x7, 0x3EA, 0x586, 0x6C7, 0x847, 0xD5F, 0xE37, 0xEC9, 0xED0, 0xF5F, 0x1000
 };
 
-int lookup_table20[] = {
+unsigned short lookup_table20[] = {
 	0x000, 0xEF, 0x1A5, 0x242, 0x2D4, 0x366, 0x3EE, 0x46A, 0x4DA, 0x54A, 0x5B3, 0x619, 0x67D, 0x6D6, 0x72D, 0x77D, 
 	0x7CC, 0x819, 0x862, 0x8AA, 0x8F0, 0x935, 0x978, 0x9BA, 0x9F9, 0xA38, 0xA76, 0xAB3, 0xAF0, 0xB2C, 0xB63, 0xB99, 
 	0xBCD, 0xC01, 0xC33, 0xC65, 0xC94, 0xCC3, 0xCF2, 0xD1E, 0xD49, 0xD73, 0xD9B, 0xDC2, 0xDE8, 0xE0D, 0xE31, 0xE53, 
@@ -172,11 +172,11 @@ int lookup_table20[] = {
 	0x1000
 };
 
-int lookup_table21[] = {
+unsigned short lookup_table21[] = {
 	0x000, 0x14D, 0x29D, 0x374, 0x526, 0x52D, 0x53A, 0x541, 0x649, 0x929, 0xFB1, 0x1000
 };
 
-int lookup_table22[] = {
+unsigned short lookup_table22[] = {
 	0x000, 0x233, 0x561, 0x755, 0x940, 0xA05, 0xABD, 0xB48, 0xBD0, 0xC40, 0xC8A, 0xCCB, 0xD0B, 0xD47, 0xD7F, 0xDB2, 
 	0xDE2, 0xE05, 0xE19, 0xE2D, 0xE40, 0xE50, 0xE5C, 0xE66, 0xE70, 0xE7A, 0xE84, 0xE8E, 0xE98, 0xEA2, 0xEAC, 0xEB6, 
 	0xEC0, 0xECA, 0xED4, 0xEDE, 0xEE8, 0xEF2, 0xEFC, 0xF06, 0xF10, 0xF1A, 0xF24, 0xF2E, 0xF38, 0xF42, 0xF4C, 0xF56, 
@@ -184,11 +184,11 @@ int lookup_table22[] = {
 	0x1000
 };
 
-int lookup_table23[] = {
+unsigned short lookup_table23[] = {
 	0x000, 0x7, 0xE, 0x15, 0x1C, 0x23, 0x2A, 0x31, 0x38, 0xFF2, 0xFF9, 0x1000
 };
 
-int lookup_table24[] = {
+unsigned short lookup_table24[] = {
 	0x000, 0x32F, 0x712, 0x82B, 0x904, 0x9C3, 0xA78, 0xB27, 0xBC0, 0xC42, 0xC9A, 0xCEA, 0xD36, 0xD7E, 0xDC5, 0xDEE, 
 	0xE06, 0xE1B, 0xE30, 0xE3C, 0xE48, 0xE52, 0xE5C, 0xE66, 0xE70, 0xE7A, 0xE84, 0xE8E, 0xE98, 0xEA2, 0xEAC, 0xEB6, 
 	0xEC0, 0xECA, 0xED4, 0xEDE, 0xEE8, 0xEF2, 0xEFC, 0xF06, 0xF10, 0xF1A, 0xF24, 0xF2E, 0xF38, 0xF42, 0xF4C, 0xF56, 
@@ -196,11 +196,11 @@ int lookup_table24[] = {
 	0x1000
 };
 
-int lookup_table25[] = {
+unsigned short lookup_table25[] = {
 	0x000, 0x15E, 0x41C, 0x4CE, 0x59C, 0x8C0, 0x985, 0x9B0, 0xB2C, 0xB33, 0xB58, 0x1000
 };
 
-int *lookups[] = {
+unsigned short *lookups[] = {
 	lookup_table4, lookup_table5, lookup_table6, lookup_table7, lookup_table8, lookup_table9, lookup_table10, lookup_table11,
 	lookup_table12, lookup_table13, lookup_table14, lookup_table15, lookup_table16, lookup_table17, lookup_table18, lookup_table19,
 	lookup_table20, lookup_table21, lookup_table22, lookup_table23, lookup_table24, lookup_table25
@@ -214,7 +214,7 @@ uchar			fid_table[0xA0 * 0x03] = {0};
 uint			base_fid[] = {0x00, 0x04, 0x03, 0x05, 0x02, 0x06, 0x01};
 int 			LvlPrev[0x03] = {0};
 
-int lookup(int key, int *lookup_table) {
+int lookup(int key, unsigned short *lookup_table) {
 	int idx = 0;
 	while (key >= *(lookup_table+idx)) {
 		idx++;
@@ -232,7 +232,7 @@ typedef struct {
 	int a;
 	int b;
 	int c;
-	int *lookup_table;
+	unsigned short *lookup_table;
 } decode_data;
 
 typedef	struct {
@@ -242,6 +242,10 @@ typedef	struct {
 	int		objlinfid;
 	uint	objlinfrank;
 }			raw_coded;
+
+static decode_data dd1 = {7,2,1,(unsigned short*)lookup_table2};
+static decode_data dd2 = {16,1,0,(unsigned short*)lookup_table3};
+
 
 queue<raw_coded>	raw_codedz;
 
@@ -265,7 +269,7 @@ void	filldecoder()
 	}
 }
 
-int		getindex(int *lookup_table)
+int		getindex(unsigned short *lookup_table)
 {
 	int d_coded_symbol = 0; // coded symbol extracted from the encoded stream
 	int d_index = 0; // index found for the currently analysed d_coded_symbol
@@ -412,6 +416,23 @@ void	WriteObject(uchar **Buffer, ObjectDesc Object)
 		break;
 	}
 }
+
+
+extern u32 pack_4142(u32 *l, u8 * packed_list, u32 pack_42, u32 max_bytes);
+extern u32 get_4142_packed_length_7148D0(u32 * l, char pack42);
+unsigned int WriteObjects(int type, uchar **Buffer, skype_thing *mythings, int mythings_len)
+{
+	skype_list		list = {&list, mythings, mythings_len, mythings_len};
+	unsigned int packed_bytes = pack_4142 ( (u32 *)&list, *Buffer, type-RAW_PARAMS, -1);
+	*Buffer+=packed_bytes;
+	return packed_bytes;
+}
+unsigned int SizeObjects(int type, skype_thing *mythings, int mythings_len)
+{
+	skype_list		list = {&list, mythings, mythings_len, mythings_len};
+	return get_4142_packed_length_7148D0((u32*)&list, type-RAW_PARAMS);
+}
+
 
 ObjectDesc	*GetObjByID(SResponse Response, uint ID, uint ObjLID, uint ObjRank)
 {
@@ -627,41 +648,43 @@ const char *DecodeObjId(uint family, uint ObjId)
 void	DumpObj(ObjectDesc Object)
 {
 	int	Idx;
+	char szTabs[8]={0};
 
-	printf("ID : %s (0x%x)\n", DecodeObjId(Object.Family, Object.Id), Object.Id);
-	printf("ObjListInfos : #%d(0x%x)/#%d(0x%x)\n", Object.ObjListInfos.Id, Object.ObjListInfos.Id, Object.ObjListInfos.Rank, Object.ObjListInfos.Rank);
+	if (Object.ObjListInfos.Rank>0) for (Idx=0; Idx<Object.ObjListInfos.Rank; Idx++) szTabs[Idx]='\t';
+	printf("%sID : %s (0x%x)\n", szTabs, DecodeObjId(Object.Family, Object.Id), Object.Id);
+	printf("%sObjListInfos : #%d(0x%x)/#%d(0x%x)\n", szTabs, Object.ObjListInfos.Id, Object.ObjListInfos.Id, Object.ObjListInfos.Rank, Object.ObjListInfos.Rank);
 	switch(Object.Family)
 	{
 	case OBJ_FAMILY_NBR:
-		printf("Family : OBJ_FAMILY_NBR\n");
-		printf("Nbr : 0x%x\n", Object.Value.Nbr);
+		printf("%sFamily : OBJ_FAMILY_NBR\n", szTabs);
+		printf("%sNbr : 0x%x\n", szTabs, Object.Value.Nbr);
 		break;
 	case OBJ_FAMILY_TABLE:
-		printf("Family : OBJ_FAMILY_TABLE\n");
-		printf("Table :\n");
+		printf("%sFamily : OBJ_FAMILY_TABLE\n", szTabs);
+		printf("%sTable :\n", szTabs);
 		showmem(Object.Value.Table, sizeof(Object.Value.Table));
 		break;
 	case OBJ_FAMILY_NETADDR:
-		printf("Family : OBJ_FAMILY_NETADDR\n");
-		printf("Addr : %s/%d\n", Object.Value.Addr.ip, Object.Value.Addr.port);
+		printf("%sFamily : OBJ_FAMILY_NETADDR\n", szTabs);
+		printf("%sAddr : %s/%d\n", szTabs, Object.Value.Addr.ip, Object.Value.Addr.port);
 		break;
 	case OBJ_FAMILY_BLOB:
-		printf("Family : OBJ_FAMILY_BLOB\n");
-		printf("Blob :\n");
+		printf("%sFamily : OBJ_FAMILY_BLOB\n", szTabs);
+		printf("%sBlob :\n", szTabs);
 		showmem(Object.Value.Memory.Memory, Object.Value.Memory.MsZ);
 		break;
 	case OBJ_FAMILY_STRING:
-		printf("Family : OBJ_FAMILY_STRING\n");
-		printf("String : %s\n", Object.Value.Memory);
+		printf("%sFamily : OBJ_FAMILY_STRING\n", szTabs);
+		printf("%sString : %s\n", szTabs, Object.Value.Memory);
 		break;
 	case OBJ_FAMILY_INTLIST:
-		printf("Family : OBJ_FAMILY_INTLIST\n");
-		printf("IntList :\n");
+		printf("%sFamily : OBJ_FAMILY_INTLIST\n", szTabs);
+		printf("%sIntList :\n", szTabs);
 		for (Idx = 0; Idx < Object.Value.Memory.MsZ; Idx++)
 			printf("-> 0x%x\n", ((uint *)Object.Value.Memory.Memory)[Idx]);
 		break;
 	case OBJ_FAMILY_OBJLIST:
-		printf("Family : OBJ_FAMILY_OBJLIST\n");
+		printf("%sFamily : OBJ_FAMILY_OBJLIST\n", szTabs);
 		break;
 	default :
 		break;
@@ -811,7 +834,7 @@ int		DecodeExtObjects(uchar **Buffer, uint Size, SResponse *Response, ObjectDesc
 
 	LocalObjListRank = CurObjListRank;
 
-	decode_data		dd1, dd2;
+	//decode_data		dd1, dd2;
 
 	Mark = *Buffer;
 	data_cursor = *Buffer;
@@ -819,6 +842,7 @@ int		DecodeExtObjects(uchar **Buffer, uint Size, SResponse *Response, ObjectDesc
 
 	family = id = nb_obj = value = 0;
 
+	/*
 	dd1.a = 0x07;
 	dd1.b = 0x02;
 	dd1.c = 0x01;
@@ -828,6 +852,7 @@ int		DecodeExtObjects(uchar **Buffer, uint Size, SResponse *Response, ObjectDesc
 	dd2.b = 0x01;
 	dd2.c = 0x00;
 	dd2.lookup_table = lookup_table3;
+	*/
 
 	if (Init == 0)
 	{

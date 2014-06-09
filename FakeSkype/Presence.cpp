@@ -13,8 +13,53 @@
 
 uchar	DirBlob[0x148 + 0x48] = {0};
 
+#pragma pack(1)
+typedef struct {
+	unsigned int ip;
+	short port;
+} loc_addr;
+
+typedef struct {
+	uchar		NodeID[8];
+	uchar		bHasPU;
+	loc_addr    addrs[3];
+} loc_blob;
+#pragma pack()
+
 void	BuildLocationBlob(CLocation Location, uchar *Buffer)
 {
+	loc_blob *pLoc = (loc_blob*)Buffer;
+
+	memcpy (pLoc->NodeID, Location.NodeID, sizeof(Location.NodeID));
+
+	// Assumption:
+	// Maybe this is the index to where to start search and it's over when you either hit 00 address or end of routing info?
+	if (pLoc->bHasPU = Location.bHasPU)
+	{
+		// Local - Supernode - External IP
+		pLoc->addrs[0].ip = inet_addr(Location.PVAddr.ip);
+		pLoc->addrs[0].port = htons(Location.PVAddr.port);
+		pLoc->addrs[1].ip = inet_addr(Location.SNAddr.ip);
+		pLoc->addrs[1].port = htons(Location.PeerLPort?Location.PeerLPort:Location.SNAddr.port);
+		if (Location.BlobSz > offsetof(loc_blob, addrs[2]))
+		{
+			pLoc->addrs[2].ip = inet_addr(Location.PUAddr.ip);
+			pLoc->addrs[2].port = htons(Location.PUAddr.port);
+		}
+	}
+	else
+	{
+		// Supernode - 0 - Local ??
+		// But there also is: External - Supernode - Local??
+		pLoc->addrs[0].ip = inet_addr(Location.SNAddr.ip);
+		pLoc->addrs[0].port = htons(Location.PeerLPort?Location.PeerLPort:Location.SNAddr.port);
+		pLoc->addrs[1].ip = inet_addr(Location.PUAddr.ip);
+		pLoc->addrs[1].port = htons(Location.PUAddr.port);
+		pLoc->addrs[2].ip = inet_addr(Location.PVAddr.ip);
+		pLoc->addrs[2].port = htons(Location.PVAddr.port);
+	}
+
+/*
 	uchar *start = Buffer;
 
 	*(unsigned int *)Buffer = *(unsigned int *)Location.NodeID;
@@ -65,6 +110,7 @@ void	BuildLocationBlob(CLocation Location, uchar *Buffer)
 		*(unsigned short *)Buffer = htons(Location.PVAddr.port);
 		Buffer += sizeof(unsigned short);
 	}
+*/
 }
 
 void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)
@@ -73,7 +119,6 @@ void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)
 	uchar			MD2Sign[0x80] = {0};
 	uchar			*Browser, *Mark;
 	uint			Idx, Size;
-	ObjectDesc		ObjLocation;
 	SHA_CTX			CredCtx, MDCtx;
 	int				RSARes;
 
@@ -83,14 +128,13 @@ void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)
 
 	Mark = Browser;
 
-	*Browser++ = RAW_PARAMS;
-	WriteValue(&Browser, 0x01);
-
-	ObjLocation.Family = OBJ_FAMILY_BLOB;
-	ObjLocation.Id = OBJ_ID_CILOCATION;
-	ObjLocation.Value.Memory.Memory = Location;
-	ObjLocation.Value.Memory.MsZ = LOCATION_SZ;
-	WriteObject(&Browser, ObjLocation);
+	{
+		skype_thing req[] = {
+			{OBJ_FAMILY_NBR , 0x5F             , 0x34         , 0          },	// Found this in Skype protocol 5
+			{OBJ_FAMILY_BLOB, OBJ_ID_CILOCATION, (u32)Location, LOCATION_SZ}
+		};
+		WriteObjects_(EXT_PARAMS, &Browser, req);
+	}
 
 	Size = (uint)(Browser - Mark);
 
@@ -138,7 +182,6 @@ void	SendPresence(CLocation Local_Node, char *User)
 	uchar			*PRequest, *Mark;
 	int				BaseSz;
 	uint			PSize;
-	ObjectDesc		ObjDirBlob;
 	Host			CurSN;
 	sockaddr_in		LocalBind;
 	SOCKET			SNUDPSock;
@@ -162,21 +205,20 @@ DumpLocation(&Local_Node);
 	}
 
 	/* First notify the supernode about our presence */
-	PRequest = Request;
-	TransID = BytesRandomWord();
-	BaseSz = 0x150 + 0x44 + 2;
-	WriteValue(&PRequest, BaseSz);
-	WriteValue(&PRequest, 0x1E1);
-
-	*PRequest++ = RAW_PARAMS;
-	WriteValue(&PRequest, 0x01);		
-	ObjDirBlob.Family = OBJ_FAMILY_BLOB;
-	ObjDirBlob.Id = OBJ_ID_DIRBLOB;
-	ObjDirBlob.Value.Memory.Memory = DirBlob;
-	ObjDirBlob.Value.Memory.MsZ = 0x148 + 0x48;
-	WriteObject(&PRequest, ObjDirBlob);
+	{
+		skype_thing req[] = {
+			{OBJ_FAMILY_BLOB, OBJ_ID_DIRBLOB, (u32)DirBlob, 0x148 + 0x40}	// Small DirBlob as in original client
+		};
+		PRequest = Request;
+		TransID = BytesRandomWord();
+		BaseSz = SizeObjects_(EXT_PARAMS, req);
+		WriteValue(&PRequest, BaseSz);
+		WriteValue(&PRequest, 0x1E1);
+		WriteObjects_(EXT_PARAMS, &PRequest, req);
+	}
 
 	SendAnnounce(TransID, Local_Node.SNAddr.socket, Local_Node.SNAddr, (BaseSz+6)*2, &Local_Node.SNAddr.Connected, &Keys);
+	showmem(Request, BaseSz+4);
 	CipherTCP(&(Keys.SendStream), Request, 3);
 	CipherTCP(&(Keys.SendStream), Request + 3, (uint)(PRequest - Request) - 3);
 	if (SendPacketTCP(Local_Node.SNAddr.socket, Local_Node.SNAddr, Request, (uint)(PRequest - Request), HTTPS_PORT, &(Local_Node.SNAddr.Connected)))
@@ -214,7 +256,6 @@ DumpLocation(&Local_Node);
 	while (!(Hosts.empty()))
 	{
 		CurSN = Hosts.front();
-		BaseSz = 0x150 + 0x48 + 3 /* 3=bytes of Object 0x1F, remove if not neded */;
 
 		ZeroMemory(Request, 0xFFF);
 
@@ -227,26 +268,18 @@ DumpLocation(&Local_Node);
 		PRequest = Request + sizeof(*PHeader);
 		Mark = PRequest;
 
-		WriteValue(&PRequest, BaseSz);			
-		WriteValue(&PRequest, 0x62);
-		*((short*)PRequest) = htons(TransID);
-		PRequest+=sizeof(short);
-
-		*PRequest++ = RAW_PARAMS;
-		WriteValue(&PRequest, 0x02);		/* 2 Objects, reduce to 1 if 0x1F not needed */
-
-		/* Don't know if this is needed, fuond it in most transactions... */
-		ObjectDesc Obj={0};
-		Obj.Family = OBJ_FAMILY_NBR;
-		Obj.Id = 0x1F;
-		Obj.Value.Nbr = 0x01;
-		WriteObject(&PRequest, Obj);
-
-		ObjDirBlob.Family = OBJ_FAMILY_BLOB;
-		ObjDirBlob.Id = OBJ_ID_DIRBLOB;
-		ObjDirBlob.Value.Memory.Memory = DirBlob;
-		ObjDirBlob.Value.Memory.MsZ = 0x148 + 0x48;
-		WriteObject(&PRequest, ObjDirBlob);
+		{
+			skype_thing req[] = {
+				{OBJ_FAMILY_NBR , 0x1F          , 0x01        , 0           },	// Don't know if this is needed, found it in most transactions...
+				{OBJ_FAMILY_BLOB, OBJ_ID_DIRBLOB, (u32)DirBlob, 0x148 + 0x48}
+			};
+			BaseSz = SizeObjects_(EXT_PARAMS, req) + 2; /* 2 extra bytes for short TransID */
+			WriteValue(&PRequest, BaseSz);
+			WriteValue(&PRequest, 0x62);
+			*((short*)PRequest) = htons(TransID);
+			PRequest+=sizeof(short);
+			WriteObjects_(EXT_PARAMS, &PRequest, req);
+		}
 
 		PSize = (uint)(PRequest - Mark);
 
