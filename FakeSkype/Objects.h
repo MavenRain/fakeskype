@@ -84,6 +84,11 @@
 #define	 OBJ_ID_PEERLOGIN	0x00
 #define  OBJ_ID_PEERSESSID	0x03
 
+/* Assumptions:
+#define OBJ_ID_PLATFORM_NEW 0x3A
+#define OBJ_ID_EMAIL		0x20
+*/
+
 void	    WriteObject(uchar **Buffer, ObjectDesc Object);
 void		DumpObj(ObjectDesc Object);
 ObjectDesc	*GetObjByID(SResponse Response, uint ID, uint ObjLID, uint ObjRank);

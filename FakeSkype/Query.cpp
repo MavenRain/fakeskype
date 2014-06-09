@@ -185,6 +185,8 @@ void	HandleQuery(Host Session_SN, uchar *Query, int Size)
 	CLocation	TesterLocation;
 	Host		Tested;
 	SessProp	*SessionProposal;
+	uint Idx = 0;
+	uint Rank = 0;
 	
 	Browser = Query;
 
@@ -193,12 +195,13 @@ void	HandleQuery(Host Session_SN, uchar *Query, int Size)
 		Response.Objs = NULL;
 		Response.NbObj = 0;
 		TCPResponseManager(&Browser, (uint *)&Size, &Response);
+		uint Idx = 0;
 
 		switch (Response.Cmd / 8)
 		{
 		case CMD_QUERY_IPING:
 			printf("Received Incoming Initial Ping..\n");
-			for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
 			{
 				switch (Response.Objs[Idx].Id)
 				{
@@ -226,7 +229,7 @@ void	HandleQuery(Host Session_SN, uchar *Query, int Size)
 			SessionProposal->CreatedSID = 0x00;
 			SessionProposal->LocalCreatedSID = 0x00;
 
-			for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
 			{
 				if (Response.Objs[Idx].ObjListInfos.Id == -1)
 				{
@@ -260,7 +263,7 @@ void	HandleQuery(Host Session_SN, uchar *Query, int Size)
 			Browser = RelaysInfos.Memory;
 
 			NbObjLists = DefNbObjList(Response);
-			for (uint Rank = 0; Rank < NbObjLists + 1; Rank++)
+			for (Rank = 0; Rank < NbObjLists + 1; Rank++)
 			{
 				Host	Relay;
 				uint	State, ObjOccur;
@@ -319,7 +322,7 @@ void	HandleQuery(Host Session_SN, uchar *Query, int Size)
 		case CMD_QUERY_UDPTEST:
 			printf("Received UDP Test report..\n");
 			Tested.port = 0;
-			for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
 			{
 				switch(Response.Objs[Idx].Id)
 				{

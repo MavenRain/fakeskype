@@ -21,7 +21,7 @@
 #include <queue>
 #include <list>
 
-#include <openssl/rc4.h>
+//#include <openssl/rc4.h>
 #include <openssl/md5.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
@@ -29,6 +29,8 @@
 #include <openssl/evp.h>
 #include <openssl/bn.h>
 #include <openssl/err.h>
+
+#include "rc4/Expand_IV.h"
 
 using namespace std;
 
@@ -121,8 +123,8 @@ enum COLORS {
 
 typedef struct
 {
-	RC4_KEY	SendStream;
-	RC4_KEY	RecvStream;
+	RC4_context	SendStream;
+	RC4_context	RecvStream;
 }	TCPKeyPair;
 
 typedef  struct
@@ -133,6 +135,7 @@ typedef  struct
 	int			Connected;
 	uint		SessionID2Declare;
 	TCPKeyPair	Keys;
+	uint		seqNum;
 }				Host;
 
 #pragma	pack(1)
@@ -404,4 +407,17 @@ void	DumpLocation(CLocation *Location);
 
 void	DumpTCPPacketObjs(uchar *Datas, uint DSize);
 
+#define strcpy_s(a1, s1, a2) strncpy(a1, a2, s1)
+#define memmove_s(a1, s1, a2, s2) memmove(a1, a2, s1 < s2? s1 : s2)
+#define memcpy_s(a1, s1, a2, s2) memcpy(a1, a2, s1 < s2? s1 : s2)
+int _snprintf_s(
+   char *buffer,
+   size_t sizeOfBuffer,
+   size_t count,
+   const char *format,
+   ...
+);
+#define strcat_s(a,b,c) strcat(a,c) 
+
 #endif /*COMMON_H*/
+

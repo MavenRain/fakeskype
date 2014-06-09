@@ -13,7 +13,18 @@
 
 /*FIXME* IMPLEMENT SKYPE_CMD FUNC TO WRITE CMDZ*/
 
+/* Nowadays maintained by M$:
+
+   dsn1.skype-dsn.akadns.net
+   ..
+   Dsn1.d.skype.net
+   ...
+
+  See: https://github.com/matthiasbock/OpenSkype/wiki/Super-Nodes
+   */
 Host	Hosts[] = {
+					{"111.221.77.155", 33033},
+						/*
 				   {"193.88.6.19", 33033},
 				   {"194.165.188.82", 33033},
 				   {"66.235.180.9", 33033},
@@ -23,6 +34,7 @@ Host	Hosts[] = {
 				   {"64.246.48.23", 33033},
 				   {"64.246.49.60", 33033},
 				   {"64.246.49.61", 33033},
+				   */
 				   {0, 0}
 				  };
 
@@ -95,9 +107,13 @@ int		ForgeProbe(uchar *Probe, Host CurHost)
 	PBody->PayLoadLen = 0x04;
 	PBody->ProbeCmd = htons(0xDA01);
 	PBody->RequestID = PHeader->TransID - 1;
+	/*
 	PBody->ParamListType = RAW_PARAMS;
 	PBody->NbObj = 0x00;
-	
+	*/
+	PBody->ParamListType = EXT_PARAMS;
+	PBody->NbObj = 0x15;
+
 	PHeader->Crc32 = htonl(crc32((uchar *)PBody, sizeof(ReqBody) + PROBE_PAYL_LEN, -1));
 
 	Cipher(Probe + sizeof(ProbeHeader), sizeof(ReqBody) + PROBE_PAYL_LEN, htonl(my_public_ip), htonl(inet_addr(CurHost.ip)), htons(PHeader->TransID), htonl(PHeader->IV), 0);
@@ -130,8 +146,12 @@ int		ResendProbe(Host CurHost, uchar *Probe)
 	PBody->PayLoadLen = 0x04;
 	PBody->ProbeCmd = htons(0xDA01);
 	PBody->RequestID = PHeader->TransID - 1;
+	/*
 	PBody->ParamListType = RAW_PARAMS;
 	PBody->NbObj = 0x00;
+	*/
+	PBody->ParamListType = EXT_PARAMS;
+	PBody->NbObj = 0x15;
 
 	Cipher(ReProbe + sizeof(ResendProbeHeader), sizeof(ReqBody) + PROBE_PAYL_LEN, htonl(my_public_ip), htonl(inet_addr(CurHost.ip)), htons(PHeader->TransID), htonl(NPacket->Challenge), 1);
 
@@ -268,12 +288,13 @@ void	OnClientAccept(Host CurHost)
 	printf("Reply to packet : 0x%x%x\n", Browser[0], Browser[1]);
 	Browser += 2;*/
 
+	uint Idx = 0;
 	switch (Response.Cmd / 8)
 	{
 	case CMD_CLIENT_OK:
 		printf("Client Accepted.. HostScanning Stop.. Connected to %s:%d !\n", CurHost.ip, CurHost.port);
 		printf("INFOS RECEIVED..\n");
-		for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+		for (Idx = 0; Idx < Response.NbObj; Idx++)
 		{
 			switch (Response.Objs[Idx].Id)
 			{
@@ -308,12 +329,13 @@ void	OnClientAccept(Host CurHost)
 	{
 		Response.Objs = NULL;
 		Response.NbObj = 0;
+		uint Idx = 0;
 		TCPResponseManager(&Browser, (uint *)&RecvBufferSz, &Response);
 		switch (Response.Cmd / 8)
 		{
 		case CMD_NETSTATS:
 			printf("NetStats Received..\n");
-			for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
 			{
 				DumpObj(Response.Objs[Idx]);
 				switch (Response.Objs[Idx].Id)
@@ -575,7 +597,7 @@ EndTest:
 	UncipherObfuscatedTCPCtrlPH(RecvBuffer);
 
 	RHeader = (TCPCtrlPacketHeader *)RecvBuffer;
-	if ((htonl(RHeader->Cookie_1) == 0x01) && (htonl(RHeader->Cookie_2) == 0x03))
+	if ((htonl(RHeader->Cookie_1) == 0x01) /*&& (htonl(RHeader->Cookie_2) == 0x03)*/)
 	{
 		printf("Remote Seed : 0x%x\n", htonl(RHeader->Seed));
 		InitKey(&(Keys.RecvStream), htonl(RHeader->Seed));

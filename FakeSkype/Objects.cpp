@@ -454,11 +454,180 @@ ObjectDesc	*GetObjByID(SResponse Response, uint ID, uint ObjLID, uint ObjRank)
 	return (Result);
 }
 
+const char *DecodeObjId(uint family, uint ObjId)
+{
+#define X(v) case v: return #v;
+	switch (ObjId)
+	{
+	case OBJ_ID_NODEID:
+		switch (family)
+		{
+		case OBJ_FAMILY_STRING:
+			return "OBJ_ID_VERSION";
+		default:
+			return "OBJ_ID_NODEID";
+		}
+		break;
+	case OBJ_ID_ZBOOL1:
+		switch (family)
+		{
+		case OBJ_FAMILY_NBR:
+			return "OBJ_ID_ZBOOL1";
+		default:
+			return "OBJ_ID_STACKTS";
+		}
+		break;
+	case OBJ_ID_LPORT:
+		switch (family)
+		{
+		case OBJ_FAMILY_STRING:
+			return "OBJ_ID_INTERNALNAM";
+		default:
+			return "OBJ_ID_LPORT";
+		}
+		break;
+	case OBJ_ID_2000:
+		switch (family)
+		{
+		case OBJ_FAMILY_TABLE:
+			return "OBJ_ID_SESCHALLENG";
+		default:
+			return "OBJ_ID_2000 / OBJ_ID_NBCONNECTED";
+		}
+		break;
+	case OBJ_ID_UPTIME:
+		switch (family)
+		{
+		case OBJ_FAMILY_BLOB:
+			return "OBJ_ID_SESPROPOSER / OBJ_ID_LDMODULUS";
+		default:
+			return "OBJ_ID_UPTIME / OBJ_ID_LOGINANSWER / OBJ_ID_BCMVER";
+		}
+		break;
+	case OBJ_ID_LDUSER:
+		switch (family)
+		{
+		case OBJ_FAMILY_BLOB:
+			return "OBJ_ID_LDUSER / OBJ_ID_TESTER / OBJ_ID_PEERLOGIN";
+		case OBJ_FAMILY_STRING:
+			return "OBJ_ID_USER2SEARCH";
+		default: // NBR
+			return "OBJ_ID_REQCODE"; // OBJ_ID_BCMID / OBJ_ID_SLOTID
+		}
+		break;
+	case OBJ_ID_USERNAME:
+		switch (family)
+		{
+		case OBJ_FAMILY_STRING:
+			return "OBJ_ID_USERNAME";
+		default:
+			return "OBJ_ID_LDEXPIRY";
+		}
+		break;
+	case OBJ_ID_MISCD:
+		switch (family) 
+		{
+		case OBJ_FAMILY_INTLIST:
+			return "OBJ_ID_MISCD";
+		default:
+			return "OBJ_ID_UBLOB";
+		}
+		break;
+	case OBJ_ID_AUTHCERT:
+		switch (family) 
+		{
+		case OBJ_FAMILY_BLOB:
+			return "OBJ_ID_AUTHCERT / OBJ_ID_CILOCATION";
+		case OBJ_FAMILY_NETADDR:
+			return "OBJ_ID_SLOTSNADDR";
+		default:
+			return "OBJ_ID_SID2DEC / OBJ_ID_PEERSESSID";
+		}
+		break;
+	case OBJ_ID_STACKVER:
+		switch (family) 
+		{
+		case OBJ_FAMILY_BLOB:
+			return "OBJ_ID_DIRBLOB";
+		default:
+			return "OBJ_ID_STACKVER";
+		}
+		break;
+	case OBJ_ID_CIPHERDLOGD:
+		switch (family) 
+		{
+		case OBJ_FAMILY_BLOB:
+			return "OBJ_ID_CIPHERDLOGD";
+		default:
+			return "OBJ_ID_CILANG";
+		}
+		break;
+	case OBJ_ID_PUBNETADDR:
+		switch (family) 
+		{
+		case OBJ_FAMILY_NETADDR:
+			return "OBJ_ID_PUBNETADDR";
+		default:
+			return "OBJ_ID_FWTESTER";
+		}
+		break;
+	case OBJ_ID_ZBOOL2:
+		switch (family) 
+		{
+		case OBJ_FAMILY_BLOB:
+			return "OBJ_ID_PINGER";
+		case OBJ_FAMILY_NETADDR:
+			return "OBJ_ID_TESTED";
+		default:
+			return "OBJ_ID_ZBOOL2";
+		}
+		break;
+	case OBJ_ID_SK:
+		switch (family) 
+		{
+		case OBJ_FAMILY_BLOB:
+			return "OBJ_ID_SK";
+		default:
+			return "OBJ_ID_RELAY";
+		}
+		break;
+	case OBJ_ID_ESAUTHANSWR:
+		switch (family) 
+		{
+		case OBJ_FAMILY_NBR:
+			return "OBJ_ID_ESAUTHANSWR";
+		default:
+			return "OBJ_ID_SOLVEDCHALL";
+		}
+		break;
+	case OBJ_ID_USERPASS:
+		return "OBJ_ID_USERPASS / OBJ_ID_USRDBLOB";
+	
+		X(OBJ_ID_STVL)
+		X(OBJ_ID_MODULUS)
+		X(OBJ_ID_PLATFORM)
+		X(OBJ_ID_LANG)
+		X(OBJ_ID_PUBADDR)
+		X(OBJ_ID_ESHASHLIST)
+		X(OBJ_ID_HASH)
+		X(OBJ_ID_DISPLAYNAME)
+		X(OBJ_ID_BUDDYSTATUS)
+		X(OBJ_ID_SLOTNBSN)
+		X(OBJ_ID_CIRNAME)
+		X(OBJ_ID_CIREGION)
+		X(OBJ_ID_CIVILLE)
+		X(OBJ_ID_FWTESTID)
+		X(OBJ_ID_AESPART1)
+	default: return "Unknown";
+	}
+#undef X
+}
+
 void	DumpObj(ObjectDesc Object)
 {
 	int	Idx;
 
-	printf("ID : 0x%x\n", Object.Id);
+	printf("ID : %s (0x%x)\n", DecodeObjId(Object.Family, Object.Id), Object.Id);
 	printf("ObjListInfos : #%d(0x%x)/#%d(0x%x)\n", Object.ObjListInfos.Id, Object.ObjListInfos.Id, Object.ObjListInfos.Rank, Object.ObjListInfos.Rank);
 	switch(Object.Family)
 	{

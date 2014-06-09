@@ -27,6 +27,10 @@ int	SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Se
 	int				Found = 0;
 	sockaddr_in		LocalBind;
 	SOCKET			SNUDPSock;
+	uint CiIdx = 0;
+	uint LdIdx = 0;
+	uint Idx = 0;
+
 	
 	SNUDPSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	ZeroMemory((char *)&LocalBind, sizeof(LocalBind));
@@ -130,7 +134,7 @@ int	SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Se
 		Response.NbObj = 0;
 		UDPResponseManager(&Browser, (uint *)&RecvBufferSz, &Response);
 
-		for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+		for (Idx = 0; Idx < Response.NbObj; Idx++)
 		{
 			switch (Response.Objs[Idx].Id)
 			{
@@ -174,7 +178,7 @@ int	SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Se
 				LoginDatas.NbObj = 0;
 				ManageObjects(&PostProcessed, PPsZ, &LoginDatas);
 
-				for (uint LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
+				for (LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
 				{
 					switch (LoginDatas.Objs[LdIdx].Id)
 					{
@@ -223,7 +227,7 @@ int	SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Se
 				ContactInfos.NbObj = 0;
 				ManageObjects(&PostProcessed, PPsZ, &ContactInfos);
 
-				for (uint CiIdx = 0; CiIdx < ContactInfos.NbObj; CiIdx++)
+				for (CiIdx = 0; CiIdx < ContactInfos.NbObj; CiIdx++)
 				{
 					switch (ContactInfos.Objs[CiIdx].Id)
 					{

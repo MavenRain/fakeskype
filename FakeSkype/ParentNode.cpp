@@ -140,6 +140,7 @@ void			RequestSlotInfos(Host Session_SN, queue<SlotInfo> *Slots, int NbAddrs, ui
 	SResponse	Response;
 	int			DecState = 0;
 	int			NbGot = 0;
+	uint Idx = 0;
 
 	Browser = RecvBuffer;
 
@@ -155,7 +156,7 @@ void			RequestSlotInfos(Host Session_SN, queue<SlotInfo> *Slots, int NbAddrs, ui
 	
 			Slot.SNodes = new queue<Host>;
 
-			for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
 			{
 				switch (Response.Objs[Idx].Id)
 				{
@@ -253,6 +254,7 @@ void			RequestSlotBlocInfos(Host Session_SN, queue<SlotInfo> *Slots, int NbSlots
 	SResponse	Response;
 	int			DecState = 0;
 	int			NbGot = 0;
+	uint Idx = 0;
 		
 	Browser = RecvBuffer;
 
@@ -268,7 +270,7 @@ void			RequestSlotBlocInfos(Host Session_SN, queue<SlotInfo> *Slots, int NbSlots
 
 			Slot.SNodes = new queue<Host>;
 
-			for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
 			{
 				switch (Response.Objs[Idx].Id)
 				{
@@ -667,6 +669,7 @@ void	PerformFireWallTest(Host ParentNode)
 
 	uchar		*Browser;
 	SResponse	Response;
+	uint Idx = 0;
 	
 	Browser = RecvBuffer;
 
@@ -682,7 +685,7 @@ void	PerformFireWallTest(Host ParentNode)
 			Host	Tester;
 
 			State = 0;
-			for (uint Idx = 0; Idx < Response.NbObj; Idx++)
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
 			{
 				switch (Response.Objs[Idx].Id)
 				{

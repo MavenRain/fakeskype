@@ -339,7 +339,7 @@ int		SendPacket(SOCKET Socket, Host CurHost, uchar *Packet, uint Size)
 {
 	sockaddr_in		Sender, ReplyTo;
 	fd_set			m_UDPSockets;
-	timeval			Wait = {0, 300000};
+	timeval			Wait = {1, 300000};
 	int				SelRes = 0;
 	int				Res = -1;
 	uchar			Buffer[0x1000];
@@ -399,7 +399,7 @@ int		SendPacketTCP(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, ushort
 {
 	sockaddr_in		Sender;
 	fd_set			m_TCPSockets;
-	timeval			Wait = {1, 0};
+	timeval			Wait = {2, 0};
 	int				SelRes = 0;
 	int				Res = -1;
 	uchar			Buffer[0x1000];
@@ -452,7 +452,7 @@ int		SendPacketTCP(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, ushort
 		}
 		else if (Res == -1)
 		{
-			printf("Socket Error\n");
+			printf("Socket Error %08X\n", WSAGetLastError());
 			return (0);
 		}
 		else
@@ -472,11 +472,11 @@ int		SendPacketTCP(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, ushort
 			Wait.tv_sec = 1;
 			Wait.tv_usec = 0;
 		}
-		/*else
+		else
 		{
 			Wait.tv_sec = 0;
 			Wait.tv_usec = 750000;
-		}*/
+		}
 		Blocking = 0;
 	}
 	
@@ -657,6 +657,7 @@ void	LocationBlob2Location(uchar	*Location, CLocation *ContactLocation, uint Blo
 	IdxUp = 0;
 	IdxDown = sizeof(ContactLocation->NodeID) - 1;
 
+	memset (ContactLocation, 0, sizeof(CLocation));
 	ZeroMemory(NodeID, sizeof(NodeID));
 	*(unsigned int *)NodeID = *(unsigned int *)(Location + 4);
 	*(unsigned int *)(NodeID + 4) = *(unsigned int *)Location;
@@ -714,4 +715,28 @@ void			DumpTCPPacketObjs(uchar *Datas, uint DSize)
 		}
 		printf("\n");
 	}
+}
+
+
+int _snprintf_s(
+   char *buffer,
+   size_t sizeOfBuffer,
+   size_t count,
+   const char *format,
+   ...
+)
+{
+    int retval;
+    va_list ap;
+ 
+    if (count < sizeOfBuffer) sizeOfBuffer = count;
+    va_start(ap, format);
+    retval = _vsnprintf(buffer, sizeOfBuffer, format, ap);
+    va_end(ap);
+ 
+    if ((0 <= retval) && (sizeOfBuffer <= (size_t) retval)) {
+        retval = -1;
+    }
+ 
+    return retval;
 }

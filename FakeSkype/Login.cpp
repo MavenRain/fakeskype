@@ -294,6 +294,8 @@ int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 
 	for (Idx = 0; Idx < Response.NbObj; Idx++)
 	{
+		uint LdIdx = 0;
+
 		switch (Response.Objs[Idx].Id)
 		{
 		case OBJ_ID_LOGINANSWER:
@@ -345,7 +347,7 @@ int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 			LoginDatas.NbObj = 0;
 			ManageObjects(&PostProcessed, PPsZ, &LoginDatas);
 
-			for (uint LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
+			for (LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
 			{
 				switch (LoginDatas.Objs[LdIdx].Id)
 				{

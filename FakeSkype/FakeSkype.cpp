@@ -13,12 +13,44 @@
 
 Host		Session_SN;
 
+void DumpSkypeTraffic(char *pszFile)
+{
+	FILE *fp = fopen(pszFile, "rb");
+	char szLine[128], *pTok;
+	unsigned char buffer[32768],*pBuf = buffer, *pStart = buffer;
+	SResponse Response={0};
+	unsigned int Idx;
+
+	while (fgets(szLine, sizeof(szLine), fp))
+	{
+		for (pTok=strtok(szLine, " "); pTok; pTok=strtok(NULL, " "))
+		{
+			if (*pTok==10 || *pTok==13 || strlen(pTok)!=2) continue;
+			sscanf (pTok, "%02X", pBuf);
+			pBuf++;
+		}
+	}
+	while (pStart < pBuf)
+	{
+		ZeroMemory (&Response, sizeof(Response));
+		ManageObjects(&pStart, pBuf-pStart, &Response);
+		for (Idx = 0; Idx < Response.NbObj; Idx++)
+			DumpObj(Response.Objs[Idx]);
+		printf ("-------------------------------------------------------------------------------\n");
+		// FIXME: free the objects
+	}
+ 	fclose(fp);
+}
+
 int			main(int argc, char* argv[])
 {
 	WORD	wVersionRequested;
 	WSADATA wsaData;
 	int		err, account;
 	char	*User, *Pass;
+
+	//DumpSkypeTraffic ("F:\\Skype.Reverse.Engineered\\traffic.txt");
+	//return 0;
 
 	account = 0;
 

@@ -122,7 +122,7 @@ double				PlatFormSpecific()
 	RegCloseKey(rKey);
 
 	Used += BufSz;
-	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\8\\DiskController\\0\\DiskPeripheral\\0", 0, KEY_QUERY_VALUE, &rKey);
+	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\9\\DiskController\\0\\DiskPeripheral\\0", 0, KEY_QUERY_VALUE, &rKey);
 	if (ret)
 		return (0);
 	ret = RegQueryValueExA(rKey, "Identifier", NULL, NULL, (LPBYTE)Buffer + Used, &BufSz);
@@ -156,7 +156,7 @@ void				FillMiscDatas(unsigned int *Datas)
 	RegCloseKey(rKey);
 	Datas[2] = BytesSHA1(Buffer, BufSz);
 
-	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\8\\DiskController\\0\\DiskPeripheral\\0", 0, KEY_QUERY_VALUE, &rKey);
+	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\9\\DiskController\\0\\DiskPeripheral\\0", 0, KEY_QUERY_VALUE, &rKey);
 	if (ret)
 		return ;
 	ret = RegQueryValueExA(rKey, "Identifier", NULL, NULL, (LPBYTE)Buffer, &BufSz);

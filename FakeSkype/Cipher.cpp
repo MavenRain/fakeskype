@@ -13,6 +13,8 @@
 
 #define	 SEED_CRC_LEN	12
 #define	 RC4_KLEN		88
+
+/*
 #define	 KEY_SERV_ADDR	"192.168.0.9"
 #define	 KEY_SERV_PORT	33033
 
@@ -20,22 +22,26 @@ RC4_KEY		RGKey;
 
 SOCKET		KeySock;
 sockaddr_in	Server;
+*/
 
 void	InitKeyServer()
 {
+	/*
 	KeySock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	
 	ZeroMemory((char *)&Server, sizeof(Server));
 	Server.sin_family = AF_INET;
 	Server.sin_port = htons(KEY_SERV_PORT);
 	Server.sin_addr.s_addr = inet_addr(KEY_SERV_ADDR);
+	*/
 }
 
 void	EndKeyServer()
 {
-	closesocket(KeySock);
+	//closesocket(KeySock);
 }
 
+/*
 int		GetKey(unsigned char *Key, unsigned int Seed)
 {
 	int			Res, SSz;
@@ -52,9 +58,13 @@ int		GetKey(unsigned char *Key, unsigned int Seed)
 
 	return (1);
 }
+*/
 
-void	InitKey(RC4_KEY	*RKey, unsigned int Seed)
+void	InitKey(RC4_context	*rc4, unsigned int Seed)
 {
+	Skype_RC4_Expand_IV (rc4, Seed, 1);
+
+	/*
 	unsigned char	Key[RC4_KLEN] = {0};
 	int				i;
 
@@ -65,16 +75,21 @@ void	InitKey(RC4_KEY	*RKey, unsigned int Seed)
 		return ;
 
 	RC4_set_key(RKey, RC4_KLEN - 8, Key);
+	*/
 }
 
 void	UncipherObfuscatedTCPCtrlPH(unsigned char *Ciphered)
 {
-	unsigned char	Key[RC4_KLEN] = {0};
+	//unsigned char	Key[RC4_KLEN] = {0};
 	unsigned int	Seed, i;
-	RC4_KEY			RKeyHeader;
+	//RC4_KEY			RKeyHeader;
+	RC4_context rc4;
 
 	Seed = htonl(*(unsigned int *)Ciphered);
 	
+	Skype_RC4_Expand_IV (&rc4, Seed, 1);
+	RC4_crypt (Ciphered + 0x04, 0x0A, &rc4, 0);
+	/*
 	for (i = 0; i < 0x14; i++)
 		*(unsigned int *)(Key + 4 * i) = Seed;
 
@@ -83,6 +98,7 @@ void	UncipherObfuscatedTCPCtrlPH(unsigned char *Ciphered)
 	
 	RC4_set_key(&RKeyHeader, RC4_KLEN - 8, Key);
 	RC4(&RKeyHeader, 0x0A, Ciphered + 0x04, Ciphered + 0x04);
+	*/
 }
 
 int		UnCipherObfuscated(unsigned char *Ciphered, unsigned int CipheredLen, char *cip, char *chost_ip)
@@ -92,7 +108,8 @@ int		UnCipherObfuscated(unsigned char *Ciphered, unsigned int CipheredLen, char 
 	unsigned int	seed, ip, host_ip, i, ResLen;
 	unsigned char	Key[RC4_KLEN] = {0};
 	unsigned short	TransID;
-	RC4_KEY			RKey;
+	//RC4_KEY			RKey;
+	RC4_context rc4;
 
 	if (Ciphered[2] != 0x02)
 		return (-1);
@@ -107,7 +124,12 @@ int		UnCipherObfuscated(unsigned char *Ciphered, unsigned int CipheredLen, char 
 	memcpy(ToCrc + 8, (void *)&TransID, 2);
 
 	seed = crc32(ToCrc, SEED_CRC_LEN, -1) ^ htonl(Header->IV);
-	
+
+	Skype_RC4_Expand_IV (&rc4, seed, 1);
+	ResLen = CipheredLen - sizeof(CipheredPacketHeader);
+	RC4_crypt (Ciphered + sizeof(CipheredPacketHeader), ResLen, &rc4, 0);
+
+	/*
 	for (i = 0; i < 0x14; i++)
 		*(unsigned int *)(Key + 4 * i) = seed;
 
@@ -117,6 +139,7 @@ int		UnCipherObfuscated(unsigned char *Ciphered, unsigned int CipheredLen, char 
 	ResLen = CipheredLen - sizeof(CipheredPacketHeader);
 	RC4_set_key(&RKey, RC4_KLEN - 8, Key);
 	RC4(&RKey, ResLen, Ciphered + sizeof(CipheredPacketHeader), Ciphered + sizeof(CipheredPacketHeader));
+	*/
 
 	return (crc32(Ciphered + sizeof(CipheredPacketHeader), ResLen, -1) == htonl(Header->Crc32));
 }
@@ -125,9 +148,10 @@ void	Cipher(unsigned char *Data, unsigned int len, unsigned int ip, unsigned int
 {
 	unsigned char	ToCrc[SEED_CRC_LEN] = {0};
 	unsigned int	seed, i;
-	unsigned char	Key[RC4_KLEN] = {0};
+	//unsigned char	Key[RC4_KLEN] = {0};
 	unsigned char	*Result;
-	RC4_KEY			RKey;
+	//RC4_KEY			RKey;
+	RC4_context rc4;
 
 	memcpy(ToCrc, (void *)&ip, 4);
 	memcpy(ToCrc + 4, (void *)&host_ip, 4);
@@ -138,6 +162,10 @@ void	Cipher(unsigned char *Data, unsigned int len, unsigned int ip, unsigned int
 	else
 		seed = TransID ^ IV;
 
+	Skype_RC4_Expand_IV (&rc4, seed, 1);
+	RC4_crypt (Data, len, &rc4, 0);
+
+	/*
 	for (i = 0; i < 0x14; i++)
 		*(unsigned int *)(Key + 4 * i) = seed;
 
@@ -147,9 +175,11 @@ void	Cipher(unsigned char *Data, unsigned int len, unsigned int ip, unsigned int
 	Result = (unsigned char *)malloc(len);
 	RC4_set_key(&RKey, RC4_KLEN - 8, Key);
 	RC4(&RKey, len, Data, Data);
+	*/
 }
 
-void	CipherTCP(RC4_KEY *RKey, unsigned char *Data, unsigned int len)
+void	CipherTCP(RC4_context *rc4, unsigned char *Data, unsigned int len)
 {
-	RC4(RKey, len, Data, Data);
+	RC4_crypt (Data, len, rc4, 0);
+	//RC4(RKey, len, Data, Data);
 }

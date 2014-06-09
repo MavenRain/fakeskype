@@ -44,7 +44,7 @@ void	ResetESSock()
 	setsockopt(ESSock, SOL_SOCKET, SO_REUSEADDR, (const char *)&ReUse, sizeof(ReUse));
 }
 
-int		SendHandShake2ES(Host CurES)
+int		SendHandShake2ES(Host *CurES)
 {
 	uchar				HandShakePkt[HANDSHAKE_SZ] = {0};
 	HttpsPacketHeader	*HSHeader;
@@ -52,9 +52,9 @@ int		SendHandShake2ES(Host CurES)
 	HSHeader = (HttpsPacketHeader *)HandShakePkt;
 	memcpy_s(HSHeader->MAGIC, sizeof(HSHeader->MAGIC), HTTPS_HSR_MAGIC, strlen(HTTPS_HSR_MAGIC));
 	HSHeader->ResponseLen = htons(0x00);
-	printf("Sending Handshake to Event Server %s..\n", CurES.ip);
+	printf("Sending Handshake to Event Server %s..\n", CurES->ip);
 	SuperWait = 2;
-	if (SendPacketTCP(ESSock, CurES, HandShakePkt, HANDSHAKE_SZ, HTTPS_PORT, &Connected))
+	if (SendPacketTCP(ESSock, *CurES, HandShakePkt, HANDSHAKE_SZ, HTTPS_PORT, &Connected))
 	{
 		printf("HandShake Response..\n");
 		//showmem(RecvBuffer, RecvBufferSz);
@@ -65,7 +65,7 @@ int		SendHandShake2ES(Host CurES)
 		return (0);
 }
 
-int		SendAuthentificationBlobES(Host CurES, char *User, char *Pass)
+int		SendAuthentificationBlobES(Host *CurES, char *User, char *Pass)
 {
 	uchar				AuthBlob[0xFFFF] = {0};
 	uchar				MD5Result[MD5_DIGEST_LENGTH] = {0};
@@ -138,7 +138,7 @@ int		SendAuthentificationBlobES(Host CurES, char *User, char *Pass)
 
 	ObjZBool2.Family = OBJ_FAMILY_NBR;
 	ObjZBool2.Id = OBJ_ID_ZBOOL2;
-	ObjZBool2.Value.Nbr = 0x04;
+	ObjZBool2.Value.Nbr = ++CurES->seqNum;
 	WriteObject(&Browser, ObjZBool2);
 
 	ObjUserName.Family = OBJ_FAMILY_STRING;
@@ -193,7 +193,7 @@ int		SendAuthentificationBlobES(Host CurES, char *User, char *Pass)
 
 	Size = (uint)(Browser - AuthBlob);
 	
-	if (SendPacketTCP(ESSock, CurES, AuthBlob, Size, HTTPS_PORT, &Connected))
+	if (SendPacketTCP(ESSock, *CurES, AuthBlob, Size, HTTPS_PORT, &Connected))
 		printf("Auth Response Got..\n\n");
 	else
 	{
@@ -265,7 +265,7 @@ int		SendAuthentificationBlobES(Host CurES, char *User, char *Pass)
 	return (1);
 }
 
-uchar					*RequestHashList(Host CurES, char *User, char *Pass, uint *NbHashes)
+uchar					*RequestHashList(Host *CurES, char *User, char *Pass, uint *NbHashes)
 {
 	double				PlatForm;
 	uchar				Blob[0xFFFF] = {0};
@@ -308,7 +308,7 @@ uchar					*RequestHashList(Host CurES, char *User, char *Pass, uint *NbHashes)
 
 	ObjZBool2.Family = OBJ_FAMILY_NBR;
 	ObjZBool2.Id = OBJ_ID_ZBOOL2;
-	ObjZBool2.Value.Nbr = 0x08;
+	ObjZBool2.Value.Nbr = ++CurES->seqNum;
 	WriteObject(&Browser, ObjZBool2);
 
 	ObjUserName.Family = OBJ_FAMILY_STRING;
@@ -335,7 +335,7 @@ uchar					*RequestHashList(Host CurES, char *User, char *Pass, uint *NbHashes)
 	PlatForm = PlatFormSpecific();
 
 	ObjPlatForm.Family = OBJ_FAMILY_TABLE;
-	ObjPlatForm.Id = OBJ_ID_PLATFORM;
+	ObjPlatForm.Id = OBJ_ID_PLATFORM;	/* Skype 5: 0x3A */
 	memcpy_s(ObjPlatForm.Value.Table, sizeof(ObjPlatForm.Value.Table), (uchar *)&PlatForm, sizeof(ObjPlatForm.Value.Table));
 	WriteObject(&Browser, ObjPlatForm);
 
@@ -370,12 +370,12 @@ uchar					*RequestHashList(Host CurES, char *User, char *Pass, uint *NbHashes)
 
 	Size = (uint)(Browser - Blob);
 	
-	if (SendPacketTCP(ESSock, CurES, Blob, Size, HTTPS_PORT, &Connected))
+	if (SendPacketTCP(ESSock, *CurES, Blob, Size, HTTPS_PORT, &Connected))
 		printf("GET_HASH Response Got..\n\n");
 	else
 	{
 		printf(":'(..\n");
-		return (NULL);
+		//return (NULL);
 	}
 
 	int AESsZ = 0;
@@ -399,8 +399,8 @@ uchar					*RequestHashList(Host CurES, char *User, char *Pass, uint *NbHashes)
 		AESsZ += sizeof(HttpsPacketHeader) + htons(HSHeader->ResponseLen);
 	}
 	printf("[UNCIPHERED]GET_HASH Response..\n\n");
-	//showmem(RecvBuffer, RecvBufferSz);
-	//printf("\n\n");
+	showmem(RecvBuffer, RecvBufferSz);
+	printf("\n\n");
 
 	uchar		*Buffer;
 	uint		BSize;
@@ -438,7 +438,7 @@ uchar					*RequestHashList(Host CurES, char *User, char *Pass, uint *NbHashes)
 	return (Result);
 }
 
-void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, uint NbHashes)
+void	RequestHashListDetails(Host *CurES, char *User, char *Pass, uint *HashList, uint NbHashes)
 {
 	double				PlatForm;
 	uchar				Blob[0xFFFF] = {0};
@@ -485,7 +485,7 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 
 		ObjZBool2.Family = OBJ_FAMILY_NBR;
 		ObjZBool2.Id = OBJ_ID_ZBOOL2;
-		ObjZBool2.Value.Nbr = 0x08;
+		ObjZBool2.Value.Nbr = ++CurES->seqNum;
 		WriteObject(&Browser, ObjZBool2);
 
 		ObjUserName.Family = OBJ_FAMILY_STRING;
@@ -517,7 +517,7 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 		PlatForm = PlatFormSpecific();
 
 		ObjPlatForm.Family = OBJ_FAMILY_TABLE;
-		ObjPlatForm.Id = OBJ_ID_PLATFORM;
+		ObjPlatForm.Id = OBJ_ID_PLATFORM;	/* Skype 5: 0x3A */
 		memcpy_s(ObjPlatForm.Value.Table, sizeof(ObjPlatForm.Value.Table), (uchar *)&PlatForm, sizeof(ObjPlatForm.Value.Table));
 		WriteObject(&Browser, ObjPlatForm);
 
@@ -553,11 +553,11 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 
 	Size = (uint)(Browser - Blob);
 	
-	if (SendPacketTCP(ESSock, CurES, Blob, Size, HTTPS_PORT, &Connected))
+	if (SendPacketTCP(ESSock, *CurES, Blob, Size, HTTPS_PORT, &Connected))
 		printf("GET_HASH_DETAILS Response Got..\n\n");
 	else
 	{
-		printf(":'(..\n");
+		printf("GET_HASH_DETAILS :'(..\n");
 		return ;
 	}
 
@@ -629,6 +629,8 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 				case 'p':
 					if (strcmp((const char *)(DName + 2), "email") == 0)
 						printf("Account email address as Blob..\n");
+					else if (strcmp((const char *)(DName + 2), "avatar") == 0)
+						printf("Avatar as Blob..\n");
 					else
 						printf("Unmanaged p-type contact (%s)..\n", DName + 2);
 					break;
@@ -663,6 +665,7 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 				}
 				else
 				{
+					uint LdIdx = 0;
 					for (uint BIdx = 0; BIdx < BlobR.NbObj; BIdx++)
 					{
 						switch (BlobR.Objs[BIdx].Id)
@@ -717,7 +720,7 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 								LoginDatas.NbObj = 0;
 								ManageObjects(&PostProcessed, PPsZ, &LoginDatas);
 
-								for (uint LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
+								for (LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
 								{
 									switch (LoginDatas.Objs[LdIdx].Id)
 									{
@@ -775,7 +778,7 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 				break;
 			}
 		}
-		if ((Type = 'u') && (DisplayName != NULL) && (InternalName != NULL) && (AuthCert.Memory != NULL) && (AuthCert.MsZ != 0))
+		if ((Type == 'u') && (DisplayName != NULL) && (InternalName != NULL) && (AuthCert.Memory != NULL) && (AuthCert.MsZ != 0))
 		{
 			CurC.DisplayName = DisplayName;
 			CurC.InternalName = InternalName;
@@ -790,7 +793,7 @@ void	RequestHashListDetails(Host CurES, char *User, char *Pass, uint *HashList, 
 	printf("\n\n");
 }
 
-void	EventCheck(Host CurES, char *User)
+void	EventCheck(Host *CurES, char *User)
 {
 	uchar			Request[0xFFF];
 	ProbeHeader		*PHeader;
@@ -856,14 +859,14 @@ void	EventCheck(Host CurES, char *User)
 
 	PHeader->Crc32 = htonl(crc32(Mark, PSize, -1));
 
-	Cipher(Mark, PSize, htonl(my_public_ip), htonl(inet_addr(CurES.ip)), htons(PHeader->TransID), htonl(PHeader->IV), 0);
+	Cipher(Mark, PSize, htonl(my_public_ip), htonl(inet_addr(CurES->ip)), htons(PHeader->TransID), htonl(PHeader->IV), 0);
 
-	if (SendPacket(ESUDPSock, CurES, Request, sizeof(ProbeHeader) + PSize))
+	if (SendPacket(ESUDPSock, *CurES, Request, sizeof(ProbeHeader) + PSize))
 	{
 		struct in_addr	PublicIP;
 
 		PublicIP.S_un.S_addr = my_public_ip;
-		if (UnCipherObfuscated(RecvBuffer, RecvBufferSz, inet_ntoa(PublicIP), CurES.ip) == 0)
+		if (UnCipherObfuscated(RecvBuffer, RecvBufferSz, inet_ntoa(PublicIP), CurES->ip) == 0)
 		{
 			printf("Unable to uncipher Packet..\n");
 			return ;
@@ -896,14 +899,14 @@ void	EventContacts(char *User, char *Pass)
 	while (!ESQueue.empty())
 	{
 		CurES = ESQueue.front();
-		if (SendHandShake2ES(CurES))
+		if (SendHandShake2ES(&CurES))
 		{
-			EventCheck(CurES, User);
+			EventCheck(&CurES, User);
 			printf("Event Server %s OK ! Let's authenticate..\n", CurES.ip);
-			if (SendAuthentificationBlobES(CurES, User, Pass))
+			if (SendAuthentificationBlobES(&CurES, User, Pass))
 			{
-				HashList = RequestHashList(CurES, User, Pass, &NbHashes);
-				RequestHashListDetails(CurES, User, Pass, (uint *)HashList, NbHashes);
+				HashList = RequestHashList(&CurES, User, Pass, &NbHashes);
+				RequestHashListDetails(&CurES, User, Pass, (uint *)HashList, NbHashes);
 				closesocket(ESSock);
 				return ;
 			}
