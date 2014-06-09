@@ -608,7 +608,7 @@ void	Listen2SN(Host SN)
 				SendPacketTCP(SN.socket, SN, Buffer, 2, HTTPS_PORT, &(SN.Connected));
 				offset = 0;
 			}
-			else if (Res == 4) offset=Res;
+			else if (Res >= 3 && Res <= 4) offset=Res;
 
 			/*uchar		*Browser;
 			SResponse	Response;

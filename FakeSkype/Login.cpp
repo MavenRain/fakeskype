@@ -368,7 +368,13 @@ int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 						break;
 				}
 			}
-			cprintf(FOREGROUND_BLUE, "User <%s> Logged in.. Credentials Expiry : %d\n", GLoginD.User, GLoginD.Expiry);
+
+			{
+			time_t expiry = GLoginD.Expiry * 60;
+
+			cprintf(FOREGROUND_BLUE, "User <%s> Logged in.. Credentials Expiry : %d (%s)\n", GLoginD.User, GLoginD.Expiry,
+				ctime(&expiry));
+			}
 			cprintf(FOREGROUND_BLUE, "Login Data Saved..\n");
 			break;
 		default :

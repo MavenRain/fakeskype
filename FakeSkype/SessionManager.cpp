@@ -93,11 +93,43 @@ uint	BuildUserPacket(Host Relay, uchar **Buffer, ushort InternTID, ushort Cmd, A
 	Browser = TmpDatas;
 	Mark = Browser;
 
+#ifdef SKYPE5_FMT	// Currently not working
+	WriteValue(&Browser, 0x00);
+	WriteValue(&Browser, 0xA6);
+#else
 	WriteValue(&Browser, InternTID);
 	WriteValue(&Browser, Cmd);
+#endif
+	*Browser++ = RAW_PARAMS;
+
+#ifdef SKYPE5_FMT	// Currently not working
+	WriteValue(&Browser, 0x04);
+#else
+	WriteValue(&Browser, NbObj);
+#endif
+
+#ifdef SKYPE5_FMT	// Currently not working
+	Obj2Write.Family = OBJ_FAMILY_NBR;
+	Obj2Write.Id = 0x00;
+	Obj2Write.Value.Nbr = 0x02;
+	WriteObject(&Browser, Obj2Write);
+
+	Obj2Write.Family = OBJ_FAMILY_NBR;
+	Obj2Write.Id = 0x01;
+	Obj2Write.Value.Nbr = Cmd;
+	WriteObject(&Browser, Obj2Write);
+
+	Obj2Write.Family = OBJ_FAMILY_NBR;
+	Obj2Write.Id = 0x02;				// What is this???
+	Obj2Write.Value.Nbr = InternTID;	// Maybe it's InternTID?
+	WriteObject(&Browser, Obj2Write);
+
+	*Browser++ = OBJ_FAMILY_OBJLIST;
+	WriteValue(&Browser, 0x03);
 
 	*Browser++ = RAW_PARAMS;
 	WriteValue(&Browser, NbObj);
+#endif
 
 	va_start(ap, NbObj);
 
@@ -114,6 +146,8 @@ uint	BuildUserPacket(Host Relay, uchar **Buffer, ushort InternTID, ushort Cmd, A
 	*Browser++ = *((uchar *)(&Crc16) + 0);
 
 	Size = (uint)(Browser - Mark);
+
+showmem(Mark, Size);
 
 	((uint *)AesStream->ivec)[0] = htonl(AesStream->AesSalt);
 	((uint *)AesStream->ivec)[1] = htonl(AesStream->AesSalt);
@@ -427,20 +461,23 @@ int	PeerAuthEnd(Host Relay)
 				return (0);
 		}
 
-		printf("Responding Back..\n");
-
-		SuperWait = 1;
-		if (SendPacketTCP(TCPSock, Relay, BackResponse, BRSize, HTTPS_PORT, &Connected))
+		if (BRSize > 0)
 		{
-			CipherTCP(&(RelayKeys.RecvStream), RecvBuffer, RecvBufferSz);
+			printf("Responding Back..\n");
 
-			printf("Peer Response..\n");
-		}
-		else
-		{
-			printf("No Response.. Skipping Relay %s..\n", Relay.ip);
-			return (0);
-		}
+			SuperWait = 1;
+			if (SendPacketTCP(TCPSock, Relay, BackResponse, BRSize, HTTPS_PORT, &Connected))
+			{
+				CipherTCP(&(RelayKeys.RecvStream), RecvBuffer, RecvBufferSz);
+
+				printf("Peer Response..\n");
+			}
+			else
+			{
+				printf("No Response.. Skipping Relay %s..\n", Relay.ip);
+				return (0);
+			}
+		} else break;
 	}
 
 	/*for (Idx = 0; Idx < Response.NbObj; Idx++)
@@ -462,7 +499,7 @@ int	PeerAuth(Host Relay)
 	ushort		Crc16 = 0;
 	ushort		InternTID, TrickyID;
 	Memory_U	SolvedChall;
-	ObjectDesc	ObjNbr, ObjLocation, ObjPeerChallenge, ObjDirBlob, ObjChallenge;
+	ObjectDesc	ObjNbr, ObjLocation, ObjPeerChallenge, ObjDirBlob, ObjChallenge, ObjAddr;
 
 	Browser = AuthDatas;
 
@@ -479,7 +516,7 @@ int	PeerAuth(Host Relay)
 	WriteValue(&Browser, 0x44);
 
 	*Browser++ = RAW_PARAMS;
-	WriteValue(&Browser, 0x0E);
+	WriteValue(&Browser, 0x0E - 1);	// -1 as not both relays are sent but only the first one
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
 	ObjNbr.Id = 0x03;
@@ -504,8 +541,29 @@ int	PeerAuth(Host Relay)
 	ObjNbr.Value.Nbr = 0x07;		//NAT TYPE
 	WriteObject(&Browser, ObjNbr);
 
-	memcpy_s(Browser, 0xFFF, SessionProposal->RelaysInfos.Memory, SessionProposal->RelaysInfos.MsZ);
-	Browser += SessionProposal->RelaysInfos.MsZ;
+	// We cannot do this, as when we are using the second relay, the relayinfos of the first relay would
+	// be copied here and relay then times out!
+	//memcpy_s(Browser, 0xFFF, SessionProposal->RelaysInfos.Memory, SessionProposal->RelaysInfos.MsZ);
+	//Browser += SessionProposal->RelaysInfos.MsZ;
+*Browser++ = OBJ_FAMILY_OBJLIST;
+*Browser++ = 0x07;
+*Browser++ = RAW_PARAMS;
+*Browser++ = 0x03;
+
+ObjNbr.Family = OBJ_FAMILY_NBR;
+ObjNbr.Id = OBJ_ID_PEERSESSID;
+ObjNbr.Value.Nbr = Relay.SessionID2Declare;
+WriteObject(&Browser, ObjNbr);
+
+ObjAddr.Family = OBJ_FAMILY_NETADDR;
+ObjAddr.Id = OBJ_ID_RELAY;
+ObjAddr.Value.Addr = Relay;
+WriteObject(&Browser, ObjAddr);
+
+ObjNbr.Family = OBJ_FAMILY_NBR;
+ObjNbr.Id = OBJ_ID_LPORT;
+ObjNbr.Value.Nbr = Relay.seqNum;
+WriteObject(&Browser, ObjNbr);
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
 	ObjNbr.Id = 0x16;
@@ -514,12 +572,12 @@ int	PeerAuth(Host Relay)
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
 	ObjNbr.Id = 0x1A;
-	ObjNbr.Value.Nbr = 0x00;
+	ObjNbr.Value.Nbr = 0x00;	// For me, it's 1?
 	WriteObject(&Browser, ObjNbr);
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
 	ObjNbr.Id = 0x1D;
-	ObjNbr.Value.Nbr = 0x00;
+	ObjNbr.Value.Nbr = 0x00;	// For me, it's B5?
 	WriteObject(&Browser, ObjNbr);
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
@@ -535,18 +593,18 @@ int	PeerAuth(Host Relay)
 	ObjDirBlob.Family = OBJ_FAMILY_BLOB;
 	ObjDirBlob.Id = 0x05;
 	ObjDirBlob.Value.Memory.Memory = DirBlob;
-	ObjDirBlob.Value.Memory.MsZ = 0x148;
+	ObjDirBlob.Value.Memory.MsZ = 0x148 + 0x40;	// +0x40 was missing!
 	WriteObject(&Browser, ObjDirBlob);
 
 	ObjNbr.Family = OBJ_FAMILY_NBR;
-	ObjNbr.Id = 0x0D;
+	ObjNbr.Id = 0x0D;	// For me, it's 0x15
 	ObjNbr.Value.Nbr = 0x02;
 	WriteObject(&Browser, ObjNbr);
 
 	uchar	ChallengeCp[0x09] = {0};
 
 	memcpy_s(ChallengeCp, sizeof(ChallengeCp), SessionProposal->Challenge, sizeof(SessionProposal->Challenge));
-	MemReverse(ChallengeCp, sizeof(ChallengeCp) - 1);
+	//MemReverse(ChallengeCp, sizeof(ChallengeCp) - 1);
 	BuildUnFinalizedDatas(ChallengeCp, sizeof(ChallengeCp), SignedChallenge);
 	RSA_private_encrypt(sizeof(SignedChallenge), SignedChallenge, SignedChallenge, GLoginD.RSAKeys, RSA_NO_PADDING);
 
@@ -561,6 +619,8 @@ int	PeerAuth(Host Relay)
 	*Browser++ = *((uchar *)(&Crc16) + 0);
 
 	Size = (uint)(Browser - Mark);
+printf ("Uncrypted auth request:\n");
+showmem(Mark, Size);
 
 	SessionProposal->AesStream->Idx = 0;
 	SessionProposal->AesStream->AesSalt = 0;
@@ -592,6 +652,9 @@ int	PeerAuth(Host Relay)
 	*Browser++ = *((uchar *)(&TrickyID) + 0);
 
 	Size += SizeSz + 3;
+
+	printf ("Peer Auth request:\n");
+	showmem(AuthDatas, Size);
 
 	CipherTCP(&(RelayKeys.SendStream), AuthDatas, 3);
 	CipherTCP(&(RelayKeys.SendStream), AuthDatas + 3, Size - 3);
@@ -851,8 +914,8 @@ int	DeclareSession(Host Relay)
 
 	Size += SizeSz;
 
-	//showmem(Request, Size);
-	//printf("\n");
+	showmem(Request, Size);
+	printf("\n");
 	
 	CipherTCP(&(RelayKeys.SendStream), Request, 3);
 	CipherTCP(&(RelayKeys.SendStream), Request + 3, Size - 3);
@@ -864,8 +927,8 @@ int	DeclareSession(Host Relay)
 		CipherTCP(&(RelayKeys.RecvStream), RecvBuffer, RecvBufferSz);
 
 		printf("Session Declare Response..\n");
-		//showmem(RecvBuffer, RecvBufferSz);
-		//printf("\n\n");
+		showmem(RecvBuffer, RecvBufferSz);
+		printf("\n\n");
 	}
 	else
 	{

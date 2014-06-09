@@ -11,6 +11,39 @@
 
 #include "SessionManager.h"
 
+/* This is used to generate random 0xEFEF data for addition obfuscation.
+   like in original Skype client. It is not needed and therefore commented,
+   but that'S the way it would work.
+   Usage:
+
+   ObjectDesc EFEF;
+
+   if (CreateEFEFGarbage(&EFEF))
+   {
+		// May need to increment number of object in your packet by one
+		WriteObject(&RCDBrowser, EFEF);
+   }
+
+static BOOL CreateEFEFGarbage(ObjectDesc *EFEF)
+{
+	int rnd = BytesRandom(), r3;
+	static char Buf[4]={0};
+
+	if (r3 = (rnd & 3))
+	{
+		int i;
+
+		for (i=0; i<r3; i++) Buf[i]=BytesRandom();
+		EFEF->Family = OBJ_FAMILY_BLOB;
+		EFEF->Id = 0xEFEF;
+		EFEF->Value.Memory.Memory = Buf;
+		EFEF->Value.Memory.MsZ = r3;
+		return TRUEM
+	}
+	return FALSE;
+}
+*/
+
 int		ManageSessionCMD(Host Relay, SessProp *SessionProposal, uchar **ResponseBuffer, SResponse Response, uint *BRSize)
 {
 	uint		Idx, Cmd, SessID;
@@ -92,6 +125,7 @@ int		ManageSessionCMD(Host Relay, SessProp *SessionProposal, uchar **ResponseBuf
 		RCDBrowser = ResponseCMDDatas;
 		RCDMark = RCDBrowser;
 
+		/*
 		*RCDBrowser++ = RAW_PARAMS;
 		WriteValue(&RCDBrowser, 0x01);
 
@@ -99,6 +133,25 @@ int		ManageSessionCMD(Host Relay, SessProp *SessionProposal, uchar **ResponseBuf
 		RCDObjNbr.Id = 0x01;
 		RCDObjNbr.Value.Nbr = 0x23;				//SendMeCredentialsAndStuff
 		WriteObject(&RCDBrowser, RCDObjNbr);
+		*/
+*RCDBrowser++ = RAW_PARAMS;
+WriteValue(&RCDBrowser, 0x03);
+
+RCDObjNbr.Family = OBJ_FAMILY_NBR;
+RCDObjNbr.Id = 0x01;
+RCDObjNbr.Value.Nbr = 0x0F;				//WeAreSyncBuddies
+WriteObject(&RCDBrowser, RCDObjNbr);
+
+RCDObjNbr.Family = OBJ_FAMILY_NBR;
+RCDObjNbr.Id = 0x1C;
+RCDObjNbr.Value.Nbr = 0x01;
+WriteObject(&RCDBrowser, RCDObjNbr);
+
+RCDObjNbr.Family = OBJ_FAMILY_NBR;
+RCDObjNbr.Id = 0x1D;
+RCDObjNbr.Value.Nbr = 0x01;
+WriteObject(&RCDBrowser, RCDObjNbr);
+
 
 		ObjBlob.Family = OBJ_FAMILY_BLOB;
 		ObjBlob.Id = 0x04;
@@ -107,7 +160,9 @@ int		ManageSessionCMD(Host Relay, SessProp *SessionProposal, uchar **ResponseBuf
 
 		ObjV.Family = OBJ_FAMILY_NBR;
 		ObjV.Id = 0x07;
-		ObjV.Value.Nbr = 0x08;
+		//ObjV.Value.Nbr = 0x08;
+if (SoughtObj = GetObjByID(Response, 0x07, -1, -1))
+ObjV.Value.Nbr = SoughtObj->Value.Nbr; else ObjV.Value.Nbr = 0x08;
 
 		ObjPrevSid.Family = OBJ_FAMILY_NBR;
 		ObjPrevSid.Id = 0x02;
@@ -115,6 +170,52 @@ int		ManageSessionCMD(Host Relay, SessProp *SessionProposal, uchar **ResponseBuf
 
 		*BRSize += BuildUserPacket(Relay, ResponseBuffer, 0xFFFF, 0x6D, SessionProposal->AesStreamOut, 5, ObjSid, ObjSeq, ObjBlob, ObjV, ObjPrevSid);
 		SessionProposal->AesStreamOut->IvecIdx = 0;
+
+ZeroMemory(ResponseCMDDatas, sizeof(ResponseCMDDatas));
+
+ObjSid.Family = OBJ_FAMILY_NBR;
+ObjSid.Id = 0x01;
+ObjSid.Value.Nbr = SessionProposal->LocalCreatedSID;
+
+ObjSeq.Family = OBJ_FAMILY_NBR;
+ObjSeq.Id = 0x03;
+ObjSeq.Value.Nbr =  SeqNbr;
+SeqNbr += 1;
+
+RCDBrowser = ResponseCMDDatas;
+RCDMark = RCDBrowser;
+
+*RCDBrowser++ = RAW_PARAMS;
+WriteValue(&RCDBrowser, 0x04);
+
+RCDObjNbr.Family = OBJ_FAMILY_NBR;
+RCDObjNbr.Id = 0x01;
+RCDObjNbr.Value.Nbr = 0x10;				//IAmSyncingHere
+WriteObject(&RCDBrowser, RCDObjNbr);
+
+RCDObjNbr.Family = OBJ_FAMILY_NBR;
+RCDObjNbr.Id = 0x0A;
+RCDObjNbr.Value.Nbr = 0xFFFFFFFF;
+WriteObject(&RCDBrowser, RCDObjNbr);
+
+RCDObjNbr.Family = OBJ_FAMILY_NBR;
+RCDObjNbr.Id = 0x13;
+RCDObjNbr.Value.Nbr = 0x10;
+WriteObject(&RCDBrowser, RCDObjNbr);
+
+RCDObjNbr.Family = OBJ_FAMILY_NBR;
+RCDObjNbr.Id = 0x22;
+RCDObjNbr.Value.Nbr = 0x01;
+WriteObject(&RCDBrowser, RCDObjNbr);
+
+ObjBlob.Family = OBJ_FAMILY_BLOB;
+ObjBlob.Id = 0x04;
+ObjBlob.Value.Memory.Memory = RCDMark;
+ObjBlob.Value.Memory.MsZ = (uint)(RCDBrowser - RCDMark);
+
+*BRSize += BuildUserPacket(Relay, ResponseBuffer, 0xFFFF, 0x6D, SessionProposal->AesStreamOut, 3, ObjSid, ObjSeq, ObjBlob);
+SessionProposal->AesStreamOut->IvecIdx = 0;
+
 
 		break;
 	case 0x2A: //HereAreMyCredentials

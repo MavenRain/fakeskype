@@ -11,7 +11,7 @@
 
 #include "Presence.h"
 
-uchar	DirBlob[0x148 + 0x48] = {0};
+uchar	DirBlob[0x148 + 0x40] = {0};
 
 #pragma pack(1)
 typedef struct {
@@ -58,59 +58,6 @@ void	BuildLocationBlob(CLocation Location, uchar *Buffer)
 		pLoc->addrs[2].ip = inet_addr(Location.PVAddr.ip);
 		pLoc->addrs[2].port = htons(Location.PVAddr.port);
 	}
-
-/*
-	uchar *start = Buffer;
-
-	*(unsigned int *)Buffer = *(unsigned int *)Location.NodeID;
-	*(unsigned int *)(Buffer + 4) = *(unsigned int *)(Location.NodeID + 4);
-	Buffer += NODEID_SZ;
-
-	*Buffer++ = Location.bHasPU;
-
-	// Assumption:
-	// Maybe this is the index to where to start search and it's over when you either hit 00 address or end of routing info?
-	if (Location.bHasPU)
-	{
-		// Local - Supernode - External IP
-		*(unsigned int *)Buffer = inet_addr(Location.PVAddr.ip);
-		Buffer += sizeof(unsigned int);
-		*(unsigned short *)Buffer = htons(Location.PVAddr.port);
-		Buffer += sizeof(unsigned short);
-
-		*(unsigned int *)Buffer = inet_addr(Location.SNAddr.ip);
-		Buffer += sizeof(unsigned int);
-		*(unsigned short *)Buffer = htons(Location.SNAddr.port);
-		Buffer += sizeof(unsigned short);
-
-		if (Location.BlobSz > Buffer - start)
-		{
-			*(unsigned int *)Buffer = inet_addr(Location.PUAddr.ip);
-			Buffer += sizeof(unsigned int);
-			*(unsigned short *)Buffer = htons(Location.PUAddr.port);
-			Buffer += sizeof(unsigned short);
-		}
-	}
-	else
-	{
-		// Supernode - 0 - Local ??
-		// But there also is: External - Supernode - Local??
-		*(unsigned int *)Buffer = inet_addr(Location.SNAddr.ip);
-		Buffer += sizeof(unsigned int);
-		*(unsigned short *)Buffer = htons(Location.SNAddr.port);
-		Buffer += sizeof(unsigned short);
-
-		*(unsigned int *)Buffer = inet_addr(Location.PUAddr.ip);
-		Buffer += sizeof(unsigned int);
-		*(unsigned short *)Buffer = htons(Location.PUAddr.port);
-		Buffer += sizeof(unsigned short);
-
-		*(unsigned int *)Buffer = inet_addr(Location.PVAddr.ip);
-		Buffer += sizeof(unsigned int);
-		*(unsigned short *)Buffer = htons(Location.PVAddr.port);
-		Buffer += sizeof(unsigned short);
-	}
-*/
 }
 
 void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)
@@ -200,14 +147,17 @@ DumpLocation(&Local_Node);
 		*(unsigned int *)DirBlob = htonl(0x000000C4 + 0x40);
 		memcpy_s(DirBlob + 0x04, 0xC4 + 0x40, GLoginD.SignedCredentials.Memory, GLoginD.SignedCredentials.MsZ);
 		BuildSignedMetaData(Buffer, &DirBlob[0xC8 + 0x40]);
-		memcpy_s (&DirBlob[0xC8 + 0x40 + 0x80], 8, &Buffer[LOCATION_SZ-8], 8);
+		
+		// Skype sometimes sends this trailing garbage, but I think it's not necessary 
+		// because it varies (but always comes from location blob)
+		//memcpy_s (&DirBlob[0xC8 + 0x40 + 0x80], 8, &Buffer[LOCATION_SZ-8], 8);
 		Init = 1;
 	}
 
 	/* First notify the supernode about our presence */
 	{
 		skype_thing req[] = {
-			{OBJ_FAMILY_BLOB, OBJ_ID_DIRBLOB, (u32)DirBlob, 0x148 + 0x40}	// Small DirBlob as in original client
+			{OBJ_FAMILY_BLOB, OBJ_ID_DIRBLOB, (u32)DirBlob, sizeof(DirBlob)}	
 		};
 		PRequest = Request;
 		TransID = BytesRandomWord();
@@ -271,7 +221,7 @@ DumpLocation(&Local_Node);
 		{
 			skype_thing req[] = {
 				{OBJ_FAMILY_NBR , 0x1F          , 0x01        , 0           },	// Don't know if this is needed, found it in most transactions...
-				{OBJ_FAMILY_BLOB, OBJ_ID_DIRBLOB, (u32)DirBlob, 0x148 + 0x48}
+				{OBJ_FAMILY_BLOB, OBJ_ID_DIRBLOB, (u32)DirBlob, sizeof(DirBlob)}
 			};
 			BaseSz = SizeObjects_(EXT_PARAMS, req) + 2; /* 2 extra bytes for short TransID */
 			WriteValue(&PRequest, BaseSz);
