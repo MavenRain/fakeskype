@@ -14,9 +14,6 @@
 
 #include "Common.h"
 
-void	InitKeyServer();
-void	EndKeyServer();
-
 void	InitKey(RC4_context	*RKey, unsigned int Seed);
 
 void	UncipherObfuscatedTCPCtrlPH(unsigned char *Ciphered);

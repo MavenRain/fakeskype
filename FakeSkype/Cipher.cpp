@@ -14,143 +14,85 @@
 #define	 SEED_CRC_LEN	12
 #define	 RC4_KLEN		88
 
-/*
-#define	 KEY_SERV_ADDR	"192.168.0.9"
-#define	 KEY_SERV_PORT	33033
 
-RC4_KEY		RGKey;
-
-SOCKET		KeySock;
-sockaddr_in	Server;
-*/
-
-void	InitKeyServer()
-{
-	/*
-	KeySock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	
-	ZeroMemory((char *)&Server, sizeof(Server));
-	Server.sin_family = AF_INET;
-	Server.sin_port = htons(KEY_SERV_PORT);
-	Server.sin_addr.s_addr = inet_addr(KEY_SERV_ADDR);
-	*/
-}
-
-void	EndKeyServer()
-{
-	//closesocket(KeySock);
-}
-
-/*
-int		GetKey(unsigned char *Key, unsigned int Seed)
-{
-	int			Res, SSz;
-	fd_set		Sockets;
-
-	SSz = sizeof(struct sockaddr_in);
-	Res = sendto(KeySock, (char *)&Seed, 0x04, 0, (SOCKADDR *)&Server, SSz);
-
-	FD_ZERO(&Sockets);
-	FD_SET(KeySock, &Sockets);
-	Res = select(FD_SETSIZE, &Sockets, NULL, NULL, NULL);
-	if (Res)
-		Res = recvfrom(KeySock, (char *)&Key[0], RC4_KLEN, 0, (SOCKADDR *)&Server, &SSz);
-
-	return (1);
-}
-*/
 
 void	InitKey(RC4_context	*rc4, unsigned int Seed)
 {
 	Skype_RC4_Expand_IV (rc4, Seed, 1);
-
-	/*
-	unsigned char	Key[RC4_KLEN] = {0};
-	int				i;
-
-	for (i = 0; i < 0x14; i++)
-		*(unsigned int *)(Key + 4 * i) = Seed;
-
-	if (GetKey(Key, Seed) == 0)
-		return ;
-
-	RC4_set_key(RKey, RC4_KLEN - 8, Key);
-	*/
 }
 
 void	UncipherObfuscatedTCPCtrlPH(unsigned char *Ciphered)
 {
-	//unsigned char	Key[RC4_KLEN] = {0};
 	unsigned int	Seed, i;
-	//RC4_KEY			RKeyHeader;
 	RC4_context rc4;
 
 	Seed = htonl(*(unsigned int *)Ciphered);
 	
 	Skype_RC4_Expand_IV (&rc4, Seed, 1);
 	RC4_crypt (Ciphered + 0x04, 0x0A, &rc4, 0);
-	/*
-	for (i = 0; i < 0x14; i++)
-		*(unsigned int *)(Key + 4 * i) = Seed;
-
-	if (GetKey(Key, Seed) == 0)
-		return ;
-	
-	RC4_set_key(&RKeyHeader, RC4_KLEN - 8, Key);
-	RC4(&RKeyHeader, 0x0A, Ciphered + 0x04, Ciphered + 0x04);
-	*/
 }
 
 int		UnCipherObfuscated(unsigned char *Ciphered, unsigned int CipheredLen, char *cip, char *chost_ip)
 {
 	CipheredPacketHeader	*Header;
 	unsigned char	ToCrc[SEED_CRC_LEN] = {0};
-	unsigned int	seed, ip, host_ip, i, ResLen;
+	unsigned int	seed, ip, host_ip, i, ResLen, offset, ret, skiphdr = 0;
 	unsigned char	Key[RC4_KLEN] = {0};
 	unsigned short	TransID;
-	//RC4_KEY			RKey;
 	RC4_context rc4;
 
-	if (Ciphered[2] != 0x02)
-		return (-1);
+	do
+	{
+		if (Ciphered[2] != 0x02)
+		{
+			// There seems to be some special for long packets exceeding 0x54B bytes..?
+			if (!(Ciphered[2] & 0x0F) == 0x0F || !(Ciphered[6] == 0x02))
+				return (-1);
+		}
 
-	Header = (CipheredPacketHeader *)Ciphered;
-	ip = htonl(inet_addr(cip));
-	host_ip = htonl(inet_addr(chost_ip));
-	TransID = htons(Header->TransID);
-	
-	memcpy(ToCrc, (void *)&host_ip, 4);
-	memcpy(ToCrc + 4, (void *)&ip, 4);
-	memcpy(ToCrc + 8, (void *)&TransID, 2);
+		Header = (CipheredPacketHeader *)Ciphered;
+		ip = htonl(inet_addr(cip));
+		host_ip = htonl(inet_addr(chost_ip));
+		TransID = htons(Header->TransID);
+		if ((Ciphered[2] & 0x0F) == 0x0F) 
+			Header = (CipheredPacketHeader *)(Ciphered + 4);
+		
+		memcpy(ToCrc, (void *)&host_ip, 4);
+		memcpy(ToCrc + 4, (void *)&ip, 4);
+		memcpy(ToCrc + 8, (void *)&TransID, 2);
 
-	seed = crc32(ToCrc, SEED_CRC_LEN, -1) ^ htonl(Header->IV);
+		seed = crc32(ToCrc, SEED_CRC_LEN, -1) ^ htonl(Header->IV);
 
-	Skype_RC4_Expand_IV (&rc4, seed, 1);
-	ResLen = CipheredLen - sizeof(CipheredPacketHeader);
-	RC4_crypt (Ciphered + sizeof(CipheredPacketHeader), ResLen, &rc4, 0);
-
-	/*
-	for (i = 0; i < 0x14; i++)
-		*(unsigned int *)(Key + 4 * i) = seed;
-
-	if (GetKey(Key, seed) == 0)
-		return (0);
-	
-	ResLen = CipheredLen - sizeof(CipheredPacketHeader);
-	RC4_set_key(&RKey, RC4_KLEN - 8, Key);
-	RC4(&RKey, ResLen, Ciphered + sizeof(CipheredPacketHeader), Ciphered + sizeof(CipheredPacketHeader));
-	*/
-
-	return (crc32(Ciphered + sizeof(CipheredPacketHeader), ResLen, -1) == htonl(Header->Crc32));
+		Skype_RC4_Expand_IV (&rc4, seed, 1);
+		offset = sizeof(CipheredPacketHeader);
+		if ((Ciphered[2] & 0x0F) == 0x0F) 
+		{
+			offset += 4;
+			if (CipheredLen >= 0x54B)
+				ResLen = 0x54B - offset;
+			else 
+				ResLen = CipheredLen - offset;
+		} else {
+			ResLen = CipheredLen - offset;
+		}
+		CipheredLen -= ( ResLen + offset);
+		RC4_crypt (Ciphered + offset, ResLen, &rc4, 0);
+		ret = (crc32(Ciphered + offset, ResLen, -1) == htonl(Header->Crc32));
+		if (skiphdr)
+		{
+			memmove (Ciphered, Ciphered + offset, ResLen + CipheredLen);
+			Ciphered += ResLen;
+		} else Ciphered += ResLen + offset;
+		skiphdr = 1;
+	} while (CipheredLen);
+	return ret;
 }
 
 void	Cipher(unsigned char *Data, unsigned int len, unsigned int ip, unsigned int host_ip, unsigned short TransID, unsigned int IV, BYTE IsResend)
 {
 	unsigned char	ToCrc[SEED_CRC_LEN] = {0};
 	unsigned int	seed, i;
-	//unsigned char	Key[RC4_KLEN] = {0};
 	unsigned char	*Result;
-	//RC4_KEY			RKey;
 	RC4_context rc4;
 
 	memcpy(ToCrc, (void *)&ip, 4);
@@ -165,21 +107,9 @@ void	Cipher(unsigned char *Data, unsigned int len, unsigned int ip, unsigned int
 	Skype_RC4_Expand_IV (&rc4, seed, 1);
 	RC4_crypt (Data, len, &rc4, 0);
 
-	/*
-	for (i = 0; i < 0x14; i++)
-		*(unsigned int *)(Key + 4 * i) = seed;
-
-	if (GetKey(Key, seed) == 0)
-		return ;
-	
-	Result = (unsigned char *)malloc(len);
-	RC4_set_key(&RKey, RC4_KLEN - 8, Key);
-	RC4(&RKey, len, Data, Data);
-	*/
 }
 
 void	CipherTCP(RC4_context *rc4, unsigned char *Data, unsigned int len)
 {
 	RC4_crypt (Data, len, rc4, 0);
-	//RC4(RKey, len, Data, Data);
 }

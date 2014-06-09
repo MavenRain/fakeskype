@@ -15,11 +15,10 @@
 #include "Common.h"
 
 uint	BytesSHA1(BYTE *Data, DWORD Length);
-double	BytesSHA1d(BYTE *Data, DWORD Length);
 uint	BytesRandom();
-double	BytesRandomD();
+__int64 BytesRandomI64();
 ushort	BytesRandomWord();
-double	PlatFormSpecific();
+__int64 PlatFormSpecific();
 void	FillMiscDatas(unsigned int *Datas);
 void	SpecialSHA(uchar *SessionKey, uint SkSz, uchar *SHAResult, uint ResSz);
 void	BuildUnFinalizedDatas(uchar *Datas, uint Size, uchar *Result);

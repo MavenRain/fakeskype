@@ -335,7 +335,7 @@ void	FlushSocket(SOCKET Socket, Host CurHost)
 	return ;
 }
 
-int		SendPacket(SOCKET Socket, Host CurHost, uchar *Packet, uint Size)
+int		SendPacket(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, sockaddr_in *PReplyTo)
 {
 	sockaddr_in		Sender, ReplyTo;
 	fd_set			m_UDPSockets;
@@ -347,6 +347,7 @@ int		SendPacket(SOCKET Socket, Host CurHost, uchar *Packet, uint Size)
 	
 	RecvBufferSz = 0xFFFF;
 	RptSz = sizeof(struct sockaddr_in);
+	if (!PReplyTo) PReplyTo = &ReplyTo;
 
 	ZeroMemory(RecvBuffer, 0xFFFF);
 	ZeroMemory((char *)&Sender, sizeof(Sender));
@@ -368,7 +369,7 @@ int		SendPacket(SOCKET Socket, Host CurHost, uchar *Packet, uint Size)
 	while ((SelRes = select(FD_SETSIZE, &m_UDPSockets, NULL, NULL, &Wait)))
 	{	
 		RptSz = sizeof(struct sockaddr_in);
-		Res = recvfrom(Socket, (char *)&Buffer[0], sizeof(Buffer), 0, (SOCKADDR *)&ReplyTo, &RptSz);
+		Res = recvfrom(Socket, (char *)&Buffer[0], sizeof(Buffer), 0, (SOCKADDR *)PReplyTo, &RptSz);
 		if (Res == 0)
 		{
 			printf("Connection reset by peer !\n");
@@ -648,16 +649,37 @@ void	SendACK(ushort PacketID, SOCKET Socket, Host CurHost, ushort CustomPort, in
 	printf("\n");
 }
 
+void	SendAnnounce(ushort PacketID, SOCKET Socket, Host CurHost, ushort size, int *Connected, TCPKeyPair *HKeys)
+{
+	uchar	Buffer[0x04] = {0}, *pRequest = Buffer;
+	ushort	RPacketID = htons(PacketID);
+
+	WriteValue(&pRequest, size);
+	*((ushort*)pRequest) = htons(RPacketID);
+
+	printf("Sending Announce of packet 0x%x\n", PacketID);
+	//showmem(Buffer, sizeof(Buffer));
+
+	CipherTCP(&(HKeys->SendStream), Buffer, 3);
+	CipherTCP(&(HKeys->SendStream), Buffer + 3, sizeof(Buffer) - 3);
+
+	NoWait = 1;
+	SendPacketTCP(Socket, CurHost, Buffer, sizeof(Buffer), HTTPS_PORT, Connected);
+
+	printf("\n");
+}
+
+
 void	LocationBlob2Location(uchar	*Location, CLocation *ContactLocation, uint BlobSz)
 {
 	int				IdxUp, IdxDown;
-	uchar			NodeID[8];
+	uchar			NodeID[8], *Start = Location;
 	struct in_addr	IP;
 
 	IdxUp = 0;
 	IdxDown = sizeof(ContactLocation->NodeID) - 1;
 
-	memset (ContactLocation, 0, sizeof(CLocation));
+	ZeroMemory (ContactLocation, sizeof(CLocation));
 	ZeroMemory(NodeID, sizeof(NodeID));
 	*(unsigned int *)NodeID = *(unsigned int *)(Location + 4);
 	*(unsigned int *)(NodeID + 4) = *(unsigned int *)Location;
@@ -666,32 +688,80 @@ void	LocationBlob2Location(uchar	*Location, CLocation *ContactLocation, uint Blo
 		ContactLocation->NodeID[IdxUp++] = NodeID[IdxDown--];
 	Location += sizeof(ContactLocation->NodeID);
 
-	ContactLocation->UnkN = *Location;
+	ContactLocation->bHasPU = *Location;
+	ContactLocation->BlobSz = BlobSz;
 	Location += 1;
 
-	IP.S_un.S_addr = *(unsigned long *)Location;
-	ZeroMemory(ContactLocation->PVAddr.ip, MAX_IP_LEN + 1);
-	strcpy_s(ContactLocation->PVAddr.ip, MAX_IP_LEN + 1, inet_ntoa(IP));
-	Location += 4;
-	ContactLocation->PVAddr.port = htons(*(unsigned short *)(Location));
-	Location += 2;
-
-	if (BlobSz == 0x15)
+	if (ContactLocation->bHasPU)
 	{
+		// Local - Supernode - External IP
+		IP.S_un.S_addr = *(unsigned long *)Location;
+		ZeroMemory(ContactLocation->PVAddr.ip, MAX_IP_LEN + 1);
+		strcpy_s(ContactLocation->PVAddr.ip, MAX_IP_LEN + 1, inet_ntoa(IP));
+		Location += sizeof(unsigned long);
+		ContactLocation->PVAddr.port = htons(*(unsigned short *)(Location));
+		Location += sizeof(unsigned short);
+
+		if (BlobSz>=Location-Start+sizeof(unsigned long)+sizeof(unsigned short))
+		{
+			IP.S_un.S_addr = *(unsigned long *)Location;
+			ZeroMemory(ContactLocation->SNAddr.ip, MAX_IP_LEN + 1);
+			strcpy_s(ContactLocation->SNAddr.ip, MAX_IP_LEN + 1, inet_ntoa(IP));
+			Location += sizeof(unsigned long);
+			ContactLocation->SNAddr.port = htons(*(unsigned short *)(Location));
+			Location += sizeof(unsigned short);
+
+			if (BlobSz>=Location-Start+sizeof(unsigned long)+sizeof(unsigned short))
+			{
+				IP.S_un.S_addr = *(unsigned long *)Location;
+				ZeroMemory(ContactLocation->PUAddr.ip, MAX_IP_LEN + 1);
+				strcpy_s(ContactLocation->PUAddr.ip, MAX_IP_LEN + 1, inet_ntoa(IP));
+				Location += sizeof(unsigned long);
+				ContactLocation->PUAddr.port = htons(*(unsigned short *)(Location));
+				Location += sizeof(unsigned short);
+			}
+		}
+	}
+	else
+	{
+		// Supernode - 0 - Local ??
+		// But there also is: External - Supernode - Local??
 		IP.S_un.S_addr = *(unsigned long *)Location;
 		ZeroMemory(ContactLocation->SNAddr.ip, MAX_IP_LEN + 1);
 		strcpy_s(ContactLocation->SNAddr.ip, MAX_IP_LEN + 1, inet_ntoa(IP));
-		Location += 4;
+		Location += sizeof(unsigned long);
 		ContactLocation->SNAddr.port = htons(*(unsigned short *)(Location));
-		Location += 2;
+		Location += sizeof(unsigned short);
+
+		if (BlobSz>=Location-Start+sizeof(unsigned long)+sizeof(unsigned short))
+		{
+			IP.S_un.S_addr = *(unsigned long *)Location;
+			ZeroMemory(ContactLocation->PUAddr.ip, MAX_IP_LEN + 1);
+			strcpy_s(ContactLocation->PUAddr.ip, MAX_IP_LEN + 1, inet_ntoa(IP));
+			Location += sizeof(unsigned long);
+			ContactLocation->PUAddr.port = htons(*(unsigned short *)(Location));
+			Location += sizeof(unsigned short);
+
+			if (BlobSz>=Location-Start+sizeof(unsigned long)+sizeof(unsigned short))
+			{
+				IP.S_un.S_addr = *(unsigned long *)Location;
+				ZeroMemory(ContactLocation->PVAddr.ip, MAX_IP_LEN + 1);
+				strcpy_s(ContactLocation->PVAddr.ip, MAX_IP_LEN + 1, inet_ntoa(IP));
+				Location += sizeof(unsigned long);
+				ContactLocation->PVAddr.port = htons(*(unsigned short *)(Location));
+				Location += sizeof(unsigned short);
+			}
+		}
 	}
 }
 
 void	DumpLocation(CLocation *Location)
 {
-	printf("0x%08x%08x-%d-%s:%d", *(uint *)Location->NodeID, *(uint *)(Location->NodeID + 4), Location->UnkN, Location->PVAddr.ip, Location->PVAddr.port);
+	printf("0x%08x%08x-%d-l%s:%d", *(uint *)Location->NodeID, *(uint *)(Location->NodeID + 4), Location->bHasPU, Location->PVAddr.ip, Location->PVAddr.port);
 	if (Location->SNAddr.port)
-		printf("-%s:%d", Location->SNAddr.ip, Location->SNAddr.port);
+		printf("-s%s:%d", Location->SNAddr.ip, Location->SNAddr.port);
+	if (Location->PUAddr.port)
+		printf("-r%s:%d", Location->PUAddr.ip, Location->PUAddr.port);
 	printf("\n");
 }
 

@@ -69,7 +69,8 @@ int					DirBlob2Contact(uchar *DirBlob, uint DbSize, Contact *DestContact)
 				DestContact->InternalName = (uchar *)_strdup((char *)LoginDatas.Objs[LdIdx].Value.Memory.Memory);
 				break;
 			default :
-				printf("Non critical Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
+				printf("Non critical LoginDatas Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
+				DumpObj(LoginDatas.Objs[LdIdx]);
 				break;
 		}
 	}
@@ -109,15 +110,19 @@ int					DirBlob2Contact(uchar *DirBlob, uint DbSize, Contact *DestContact)
 		{
 			case OBJ_ID_CIRNAME:
 				DestContact->RealDName = _strdup((char *)ContactInfos.Objs[CiIdx].Value.Memory.Memory);
+printf ("RealDName = %s\n", DestContact->RealDName);
 				break;
 			case OBJ_ID_CILANG:
 				DestContact->Langue = _strdup((char *)ContactInfos.Objs[CiIdx].Value.Memory.Memory);
+printf ("Langue = %s\n", DestContact->Langue);
 				break;
 			case OBJ_ID_CIREGION:
 				DestContact->Region = _strdup((char *)ContactInfos.Objs[CiIdx].Value.Memory.Memory);
+printf ("Region = %s\n", DestContact->Region);
 				break;
 			case OBJ_ID_CIVILLE:
 				DestContact->Ville = _strdup((char *)ContactInfos.Objs[CiIdx].Value.Memory.Memory);
+printf ("Ville = %s\n", DestContact->Ville );
 				break;
 			case OBJ_ID_CILOCATION:
 				CLocation		ContactLocation;
@@ -126,6 +131,8 @@ int					DirBlob2Contact(uchar *DirBlob, uint DbSize, Contact *DestContact)
 				DestContact->Locations->push_back(ContactLocation);
 				break;
 			default :
+				printf("Non critical Contactinfo Object %d:%d..\n", ContactInfos.Objs[CiIdx].Family, ContactInfos.Objs[CiIdx].Id);
+				DumpObj(ContactInfos.Objs[CiIdx]);
 				break;
 		}
 	}
@@ -274,7 +281,8 @@ void				DumpDirBlobMetaDatas(uchar *DirBlob, uint DbSize)
 					break;
 				}
 			default :
-				printf("Non critical Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
+				printf("Non critical LoginDatas Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
+				DumpObj(LoginDatas.Objs[LdIdx]);
 				break;
 		}
 	}

@@ -117,7 +117,7 @@ void			RequestSlotInfos(Host Session_SN, queue<SlotInfo> *Slots, int NbAddrs, ui
 	*Request <<= 1;
 
 	printf("Sending slot #%d info request..\n", SlotID);
-	//showmem(Request, (uint)(PRequest - Request));
+	showmem(Request, (uint)(PRequest - Request));
 
 	CipherTCP(&(Keys.SendStream), Request, 3);
 	CipherTCP(&(Keys.SendStream), Request + 3, (uint)(PRequest - Request) - 3);
@@ -699,6 +699,7 @@ void	PerformFireWallTest(Host ParentNode)
 					break;
 				default:
 					printf("Non Critical Object %d:%d\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
+					DumpObj(Response.Objs[Idx]);
 					break;
 				}
 			}
@@ -748,7 +749,7 @@ void	SubmitUpdatedProps(Host ParentNode)
 
 	Mark = PRequest;
 	WriteValue(&PRequest, sizeof(PropsNStats) + 2);
-	WriteValue(&PRequest, 0x129);
+	WriteValue(&PRequest, 0x129);	// A9 02 (Skype version, Operating system, etc. )
 	
 	*PRequest++ = RAW_PARAMS;
 	WriteValue(&PRequest, 0x2A);

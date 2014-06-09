@@ -37,7 +37,8 @@ using namespace std;
 #define	 NB_HARD_HOST		7
 
 #define	 NODEID_SZ			8
-#define  LOCATION_SZ		0x15
+//#define  LOCATION_SZ		0x15
+#define  LOCATION_SZ		0x1B
 #define	 DEF_LPORT			50025
 
 #define	 HANDSHAKE_SZ		0x05
@@ -96,6 +97,11 @@ using namespace std;
 
 #define  PROBE_PAYL_LEN		0x00
 #define	 CLACPT_PAYL_LEN	0x15
+
+// Availability
+#define  STATUS_DND			0x05	// Do not disturb
+#define  STATUS_AWAY		0x03	// Away
+#define  STATUS_ONLINE		0x02	// Online
 
 typedef	 unsigned char		uchar;
 typedef	 unsigned short		ushort;
@@ -268,10 +274,12 @@ typedef struct
 typedef struct
 {
 	uchar		NodeID[8];
-	uchar		UnkN;
-	Host		SNAddr;
-	Host		PVAddr;
+	uchar		bHasPU;	// Has Public address? Determines order of location Info
+	Host		SNAddr;	// Supernode address
+	Host		PVAddr;	// Private (LAN) address
+	Host		PUAddr;	// Public (external) address
 	uint		OnLineNode;
+	uint		BlobSz;
 }	CLocation;
 
 typedef struct
@@ -369,7 +377,8 @@ extern queue<Contact>	Contacts;
 extern uchar			*Email;
 extern uint				NbUserConnected;
 extern TCPKeyPair		Keys;
-extern Host				Session_SN;
+//extern Host				Session_SN;
+extern CLocation		Session_Node;
 extern uchar			DirBlob[];
 
 extern uint				SuperWait;
@@ -396,10 +405,11 @@ int		GetWrittenSz(uint Value);
 void	cprintf(WORD Color, char *format, ...);
 
 void	FlushSocket(SOCKET Socket, Host CurHost);
-int		SendPacket(SOCKET Socket, Host CurHost, uchar *Packet, uint Size);
+int		SendPacket(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, sockaddr_in *PReplyTo=NULL);
 int		SendPacketTCP(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, ushort CustomPort, int *Connected);
 int		SendPacketTCPEx(SOCKET Socket, Host CurHost, uchar *Packet, uint Size, ushort CustomPort, int *Connected);
 void	SendACK(ushort PacketID, SOCKET Socket, Host CurHost, ushort CustomPort, int *Connected, TCPKeyPair *Keys);
+void	SendAnnounce(ushort PacketID, SOCKET Socket, Host CurHost, ushort size, int *Connected, TCPKeyPair *HKeys);
 void	Listen2SN(Host SN);
 
 void	LocationBlob2Location(uchar	*Location, CLocation *ContactLocation, uint BlobSz);

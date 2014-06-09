@@ -11,38 +11,60 @@
 
 #include "Presence.h"
 
-uchar	DirBlob[0x148 + 0x40] = {0};
+uchar	DirBlob[0x148 + 0x48] = {0};
 
-void	BuildLocationBlob(Host Session_SN, uchar *Buffer)
+void	BuildLocationBlob(CLocation Location, uchar *Buffer)
 {
-	uchar	NodeID[NODEID_SZ] = {0};
-	uchar	*PNodeID;
-	int		IdxUp, IdxDown;
+	uchar *start = Buffer;
 
-	IdxUp = 0;
-	IdxDown = NODEID_SZ - 1;
-
-	PNodeID = GetNodeId();
-	while (IdxUp < NODEID_SZ)
-	{
-		NodeID[IdxUp] = PNodeID[IdxUp];
-		IdxUp++;
-	}
-	*(unsigned int *)Buffer = *(unsigned int *)NodeID;
-	*(unsigned int *)(Buffer + 4) = *(unsigned int *)(NodeID + 4);
+	*(unsigned int *)Buffer = *(unsigned int *)Location.NodeID;
+	*(unsigned int *)(Buffer + 4) = *(unsigned int *)(Location.NodeID + 4);
 	Buffer += NODEID_SZ;
 
-	*Buffer++ = 0x01;
+	*Buffer++ = Location.bHasPU;
 
-	*(unsigned int *)Buffer = inet_addr("127.0.0.1");
-	Buffer += 4;
-	*(unsigned short *)Buffer = htons(GetListeningPort());
-	Buffer += 2;
+	// Assumption:
+	// Maybe this is the index to where to start search and it's over when you either hit 00 address or end of routing info?
+	if (Location.bHasPU)
+	{
+		// Local - Supernode - External IP
+		*(unsigned int *)Buffer = inet_addr(Location.PVAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.PVAddr.port);
+		Buffer += sizeof(unsigned short);
 
-	*(unsigned int *)Buffer = inet_addr(Session_SN.ip);
-	Buffer += 4;
-	*(unsigned short *)Buffer = htons(Session_SN.port);
-	Buffer += 2;
+		*(unsigned int *)Buffer = inet_addr(Location.SNAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.SNAddr.port);
+		Buffer += sizeof(unsigned short);
+
+		if (Location.BlobSz > Buffer - start)
+		{
+			*(unsigned int *)Buffer = inet_addr(Location.PUAddr.ip);
+			Buffer += sizeof(unsigned int);
+			*(unsigned short *)Buffer = htons(Location.PUAddr.port);
+			Buffer += sizeof(unsigned short);
+		}
+	}
+	else
+	{
+		// Supernode - 0 - Local ??
+		// But there also is: External - Supernode - Local??
+		*(unsigned int *)Buffer = inet_addr(Location.SNAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.SNAddr.port);
+		Buffer += sizeof(unsigned short);
+
+		*(unsigned int *)Buffer = inet_addr(Location.PUAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.PUAddr.port);
+		Buffer += sizeof(unsigned short);
+
+		*(unsigned int *)Buffer = inet_addr(Location.PVAddr.ip);
+		Buffer += sizeof(unsigned int);
+		*(unsigned short *)Buffer = htons(Location.PVAddr.port);
+		Buffer += sizeof(unsigned short);
+	}
 }
 
 void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)
@@ -72,6 +94,17 @@ void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)
 
 	Size = (uint)(Browser - Mark);
 
+	// MD2Sign:
+	// [4BBBBBBBBB..BA][SIGNEDCREDENTIALS][METADATA][SIGNEDMETADATA]
+	// Mark            ^(20 bytes) 
+	// 
+	//                                    [SIGNEDMETADATA]BC
+	//                                   ^-v4
+	//	                        [METADATA]
+	//                         ^v5
+	// 4B BBBBBBBBBBBBBBBBBB BA
+
+
 	MD2Sign[0x00] = 0x4B;
 	
 	for (Idx = 1; Idx < (0x80 - (Size + (2 * SHA_DIGEST_LENGTH)) - 2); Idx++)
@@ -97,7 +130,7 @@ void	BuildSignedMetaData(uchar *Location, uchar *SignedMD)
 	RSARes = RSA_private_encrypt(sizeof(MD2Sign), MD2Sign, SignedMD, GLoginD.RSAKeys, RSA_NO_PADDING);
 }
 
-void	SendPresence(Host Session_SN, char *User)
+void	SendPresence(CLocation Local_Node, char *User)
 {
 	uchar			Request[0xFFF];
 	ProbeHeader		*PHeader;
@@ -118,14 +151,46 @@ void	SendPresence(Host Session_SN, char *User)
 
 	if (Init == 0)
 	{
-		BuildLocationBlob(Session_SN, &Buffer[0]);
+		BuildLocationBlob(Local_Node, &Buffer[0]);
+DumpLocation(&Local_Node);
 		
 		*(unsigned int *)DirBlob = htonl(0x000000C4 + 0x40);
 		memcpy_s(DirBlob + 0x04, 0xC4 + 0x40, GLoginD.SignedCredentials.Memory, GLoginD.SignedCredentials.MsZ);
 		BuildSignedMetaData(Buffer, &DirBlob[0xC8 + 0x40]);
+		memcpy_s (&DirBlob[0xC8 + 0x40 + 0x80], 8, &Buffer[LOCATION_SZ-8], 8);
 		Init = 1;
 	}
 
+	/* First notify the supernode about our presence */
+	PRequest = Request;
+	TransID = BytesRandomWord();
+	BaseSz = 0x150 + 0x44 + 2;
+	WriteValue(&PRequest, BaseSz);
+	WriteValue(&PRequest, 0x1E1);
+
+	*PRequest++ = RAW_PARAMS;
+	WriteValue(&PRequest, 0x01);		
+	ObjDirBlob.Family = OBJ_FAMILY_BLOB;
+	ObjDirBlob.Id = OBJ_ID_DIRBLOB;
+	ObjDirBlob.Value.Memory.Memory = DirBlob;
+	ObjDirBlob.Value.Memory.MsZ = 0x148 + 0x48;
+	WriteObject(&PRequest, ObjDirBlob);
+
+	SendAnnounce(TransID, Local_Node.SNAddr.socket, Local_Node.SNAddr, (BaseSz+6)*2, &Local_Node.SNAddr.Connected, &Keys);
+	CipherTCP(&(Keys.SendStream), Request, 3);
+	CipherTCP(&(Keys.SendStream), Request + 3, (uint)(PRequest - Request) - 3);
+	if (SendPacketTCP(Local_Node.SNAddr.socket, Local_Node.SNAddr, Request, (uint)(PRequest - Request), HTTPS_PORT, &(Local_Node.SNAddr.Connected)))
+	{
+	showmem(RecvBuffer, RecvBufferSz);
+		CipherTCP(&(Keys.RecvStream), RecvBuffer, RecvBufferSz);
+		
+		printf("Ack Received..\n");
+	showmem(RecvBuffer, RecvBufferSz);
+	printf("\n\n");
+	}
+
+
+	/* Then send our location blob to the list of supernodes */
 	SNUDPSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	ZeroMemory((char *)&LocalBind, sizeof(LocalBind));
 	LocalBind.sin_family = AF_INET;
@@ -133,10 +198,10 @@ void	SendPresence(Host Session_SN, char *User)
 	LocalBind.sin_port = htons(DEF_LPORT);
 	bind(SNUDPSock, (struct sockaddr *)&LocalBind, sizeof(LocalBind));
 
-	RequestSlotInfos(Session_SN, &Slot, 0x12, GetAssociatedSlotID(User));
+	RequestSlotInfos(Local_Node.SNAddr, &Slot, 0x12, GetAssociatedSlotID(User));
 	if (Slot.size() == 0)
 	{
-		RequestSlotInfos(Session_SN, &Slot, 0x12, GetAssociatedSlotID(User));
+		RequestSlotInfos(Local_Node.SNAddr, &Slot, 0x12, GetAssociatedSlotID(User));
 		if (Slot.size() == 0)
 		{
 			printf("Unable to get Slot Info.. Aborting..\n");
@@ -149,36 +214,46 @@ void	SendPresence(Host Session_SN, char *User)
 	while (!(Hosts.empty()))
 	{
 		CurSN = Hosts.front();
-		BaseSz = 0x14E;
+		BaseSz = 0x150 + 0x48 + 3 /* 3=bytes of Object 0x1F, remove if not neded */;
 
 		ZeroMemory(Request, 0xFFF);
 
 		TransID = BytesRandomWord();
 		PHeader = (ProbeHeader *)Request;
-		PHeader->TransID = htons(TransID);
+		PHeader->TransID = htons(TransID+1);
 		PHeader->PacketType = PKT_TYPE_OBFSUK;
 		PHeader->IV = htonl(GenIV());
 
 		PRequest = Request + sizeof(*PHeader);
 		Mark = PRequest;
 
-		WriteValue(&PRequest, BaseSz);
-		WriteValue(&PRequest, 0x61);
+		WriteValue(&PRequest, BaseSz);			
+		WriteValue(&PRequest, 0x62);
+		*((short*)PRequest) = htons(TransID);
+		PRequest+=sizeof(short);
 
 		*PRequest++ = RAW_PARAMS;
-		WriteValue(&PRequest, 0x01);
+		WriteValue(&PRequest, 0x02);		/* 2 Objects, reduce to 1 if 0x1F not needed */
+
+		/* Don't know if this is needed, fuond it in most transactions... */
+		ObjectDesc Obj={0};
+		Obj.Family = OBJ_FAMILY_NBR;
+		Obj.Id = 0x1F;
+		Obj.Value.Nbr = 0x01;
+		WriteObject(&PRequest, Obj);
 
 		ObjDirBlob.Family = OBJ_FAMILY_BLOB;
 		ObjDirBlob.Id = OBJ_ID_DIRBLOB;
 		ObjDirBlob.Value.Memory.Memory = DirBlob;
-		ObjDirBlob.Value.Memory.MsZ = 0x148;
+		ObjDirBlob.Value.Memory.MsZ = 0x148 + 0x48;
 		WriteObject(&PRequest, ObjDirBlob);
 
 		PSize = (uint)(PRequest - Mark);
 
 		PHeader->Crc32 = htonl(crc32(Mark, PSize, -1));
 
-		//showmem(Request, sizeof(ProbeHeader) + PSize);
+//printf ("Sending Presence to %s:%d\n", CurSN.ip, CurSN.port);
+//showmem(Request, sizeof(ProbeHeader) + PSize);
 
 		Cipher(Mark, PSize, htonl(my_public_ip), htonl(inet_addr(CurSN.ip)), htons(PHeader->TransID), htonl(PHeader->IV), 0);
 
@@ -193,8 +268,8 @@ void	SendPresence(Host Session_SN, char *User)
 				goto Skip;
 			}
 			printf("Ack Received..\n");
-			//showmem(RecvBuffer, RecvBufferSz);
-			//printf("\n\n");
+//showmem(RecvBuffer, RecvBufferSz);
+//printf("\n\n");
 		}
 		else
 		{

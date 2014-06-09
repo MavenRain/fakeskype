@@ -17,6 +17,7 @@
 Memory_U	GetAuthCert(queue<Contact> ContactsList, Contact *PeerContact);
 int			SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Search, queue<Host> Hosts);
 void		SearchContactList(Host Session_SN, char *User);
-void		InitialPingOnLine(Host Session_SN, char *User);
+void		InitialPingOnLine(CLocation Local_Node, char *User);
+void TestInitialPing(CLocation Local_Node);
 
 #endif /*SEARCHCONTACTS_H*/

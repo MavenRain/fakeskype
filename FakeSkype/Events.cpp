@@ -12,6 +12,9 @@
 #include "Events.h"
 
 Host	EventsServers[] = {{"212.8.163.76", 12350},
+{"78.141.179.15", 12350},
+							{"193.95.154.38", 12350},
+							{"212.8.166.36", 12350},
 						   {"212.72.49.142", 12350},
 						   {"195.215.8.142", 12350},
 						   {0, 0}
@@ -257,6 +260,7 @@ int		SendAuthentificationBlobES(Host *CurES, char *User, char *Pass)
 			break;
 		default :
 			printf("Non critical Object %d:%d..\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
+			DumpObj(Response.Objs[Idx]);
 			break;
 		}
 	}
@@ -267,7 +271,7 @@ int		SendAuthentificationBlobES(Host *CurES, char *User, char *Pass)
 
 uchar					*RequestHashList(Host *CurES, char *User, char *Pass, uint *NbHashes)
 {
-	double				PlatForm;
+	__int64				PlatForm;
 	uchar				Blob[0xFFFF] = {0};
 	uchar				MD5Result[MD5_DIGEST_LENGTH] = {0};
 	uchar				SHAResult[32] = {0};
@@ -430,6 +434,7 @@ uchar					*RequestHashList(Host *CurES, char *User, char *Pass, uint *NbHashes)
 			break;
 		default :
 			printf("Non critical Object %d:%d..\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
+			DumpObj (Response.Objs[Idx]);
 			break;
 		}
 	}
@@ -440,7 +445,7 @@ uchar					*RequestHashList(Host *CurES, char *User, char *Pass, uint *NbHashes)
 
 void	RequestHashListDetails(Host *CurES, char *User, char *Pass, uint *HashList, uint NbHashes)
 {
-	double				PlatForm;
+	__int64				PlatForm;
 	uchar				Blob[0xFFFF] = {0};
 	uchar				MD5Result[MD5_DIGEST_LENGTH] = {0};
 	uchar				SHAResult[32] = {0};
@@ -458,337 +463,385 @@ void	RequestHashListDetails(Host *CurES, char *User, char *Pass, uint *HashList,
 	MD5_CTX				Context;
 	RSA					*SkypeRSA;
 	ObjectDesc			ObjRequestCode, ObjZBool2, ObjUserName, ObjSharedSecret, ObjHash, ObjPlatForm, ObjVer, ObjPubAddr;
+	uint                HashChunk, HashIdx, HashEnd;
 
-	Browser = Blob;
-
-	for (uint HashIdx = 0; HashIdx < NbHashes; HashIdx++)
+	// Process hashes in blocks of 10
+	for (HashChunk = 0, HashIdx = 0; HashChunk < NbHashes; HashChunk+=10)
 	{
-		GetSessionKey(SessionKey);
+		Browser = Blob;
 
-		SpecialSHA(SessionKey, SK_SZ, SHAResult, 32);
-		AES_set_encrypt_key(SHAResult, 256, &AesKey);
-
-		Mark = Browser;
-		HSHeader = (HttpsPacketHeader *)Browser;
-		memcpy_s(HSHeader->MAGIC, sizeof(HSHeader->MAGIC), HTTPS_HSRR_MAGIC, strlen(HTTPS_HSRR_MAGIC));
-		HSHeader->ResponseLen = htons(0x00);
-		Browser += sizeof(HttpsPacketHeader);
-
-		MarkObjL = Browser;
-		*Browser++ = RAW_PARAMS;
-		*Browser++ = 0x04;
-
-		ObjRequestCode.Family = OBJ_FAMILY_NBR;
-		ObjRequestCode.Id = OBJ_ID_REQCODE;
-		ObjRequestCode.Value.Nbr = 0x1788;
-		WriteObject(&Browser, ObjRequestCode);
-
-		ObjZBool2.Family = OBJ_FAMILY_NBR;
-		ObjZBool2.Id = OBJ_ID_ZBOOL2;
-		ObjZBool2.Value.Nbr = ++CurES->seqNum;
-		WriteObject(&Browser, ObjZBool2);
-
-		ObjUserName.Family = OBJ_FAMILY_STRING;
-		ObjUserName.Id = OBJ_ID_USERNAME;
-		ObjUserName.Value.Memory.Memory = (uchar *)User;
-		ObjUserName.Value.Memory.MsZ = (uchar)strlen(User);
-		WriteObject(&Browser, ObjUserName);
-
-		MD5_Init(&Context);
-		MD5_Update(&Context, User, (ulong)strlen(User));
-		MD5_Update(&Context, CONCAT_SALT, (ulong)strlen(CONCAT_SALT));
-		MD5_Update(&Context, Pass, (ulong)strlen(Pass));
-		MD5_Final(MD5Result, &Context);
-
-		ObjSharedSecret.Family = OBJ_FAMILY_BLOB;
-		ObjSharedSecret.Id = OBJ_ID_USERPASS;
-		ObjSharedSecret.Value.Memory.Memory = (uchar *)MD5Result;
-		ObjSharedSecret.Value.Memory.MsZ = MD5_DIGEST_LENGTH;
-		WriteObject(&Browser, ObjSharedSecret);
-
-		*Browser++ = RAW_PARAMS;
-		*Browser++ = 0x05;
-
-		ObjHash.Family = OBJ_FAMILY_NBR;
-		ObjHash.Id = OBJ_ID_HASH;
-		ObjHash.Value.Nbr = htonl(HashList[HashIdx]);
-		WriteObject(&Browser, ObjHash);
-
-		PlatForm = PlatFormSpecific();
-
-		ObjPlatForm.Family = OBJ_FAMILY_TABLE;
-		ObjPlatForm.Id = OBJ_ID_PLATFORM;	/* Skype 5: 0x3A */
-		memcpy_s(ObjPlatForm.Value.Table, sizeof(ObjPlatForm.Value.Table), (uchar *)&PlatForm, sizeof(ObjPlatForm.Value.Table));
-		WriteObject(&Browser, ObjPlatForm);
-
-		ObjUserName.Family = OBJ_FAMILY_STRING;
-		ObjUserName.Id = OBJ_ID_USERNAME;
-		ObjUserName.Value.Memory.Memory = (uchar *)User;
-		ObjUserName.Value.Memory.MsZ = (uchar)strlen(User);
-		WriteObject(&Browser, ObjUserName);
-
-		ObjVer.Family = OBJ_FAMILY_STRING;
-		ObjVer.Id = OBJ_ID_VERSION;
-		ObjVer.Value.Memory.Memory = (uchar *)VER_STR;
-		ObjVer.Value.Memory.MsZ = (uchar)strlen(VER_STR);
-		WriteObject(&Browser, ObjVer);
-
-		ObjPubAddr.Family = OBJ_FAMILY_NBR;
-		ObjPubAddr.Id = OBJ_ID_PUBADDR;
-		ObjPubAddr.Value.Nbr = htonl(my_public_ip);
-		WriteObject(&Browser, ObjPubAddr);
-
-		Size = (uint)(Browser - MarkObjL);
-		HSHeader->ResponseLen = htons((ushort)Size + 0x02);
-
-		Idx = 0;
-		ZeroMemory(ivec, AES_BLOCK_SIZE);
-		ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
-		AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
-
-		Crc = crc32(MarkObjL, Size, -1);
-		*Browser++ = *((uchar *)(&Crc) + 0);
-		*Browser++ = *((uchar *)(&Crc) + 1);
-	}
-
-	Size = (uint)(Browser - Blob);
-	
-	if (SendPacketTCP(ESSock, *CurES, Blob, Size, HTTPS_PORT, &Connected))
-		printf("GET_HASH_DETAILS Response Got..\n\n");
-	else
-	{
-		printf("GET_HASH_DETAILS :'(..\n");
-		return ;
-	}
-
-	int AESsZ = 0;
-	while (AESsZ < RecvBufferSz)
-	{
-		HSHeader = (HttpsPacketHeader *)(RecvBuffer + AESsZ);
-		if (strncmp((const char *)HSHeader->MAGIC, HTTPS_HSRR_MAGIC, strlen(HTTPS_HSRR_MAGIC)))
+		for (HashEnd=HashChunk+10>NbHashes?NbHashes:HashChunk+10; HashIdx < HashEnd; HashIdx++)
 		{
-			printf("Bad Response..\n");
+			GetSessionKey(SessionKey);
+
+			SpecialSHA(SessionKey, SK_SZ, SHAResult, 32);
+			AES_set_encrypt_key(SHAResult, 256, &AesKey);
+
+			Mark = Browser;
+			HSHeader = (HttpsPacketHeader *)Browser;
+			memcpy_s(HSHeader->MAGIC, sizeof(HSHeader->MAGIC), HTTPS_HSRR_MAGIC, strlen(HTTPS_HSRR_MAGIC));
+			HSHeader->ResponseLen = htons(0x00);
+			Browser += sizeof(HttpsPacketHeader);
+
+			MarkObjL = Browser;
+			*Browser++ = RAW_PARAMS;
+			*Browser++ = 0x04;
+
+			ObjRequestCode.Family = OBJ_FAMILY_NBR;
+			ObjRequestCode.Id = OBJ_ID_REQCODE;
+			ObjRequestCode.Value.Nbr = 0x1788;
+			WriteObject(&Browser, ObjRequestCode);
+
+			ObjZBool2.Family = OBJ_FAMILY_NBR;
+			ObjZBool2.Id = OBJ_ID_ZBOOL2;
+			ObjZBool2.Value.Nbr = ++CurES->seqNum;
+			WriteObject(&Browser, ObjZBool2);
+
+			ObjUserName.Family = OBJ_FAMILY_STRING;
+			ObjUserName.Id = OBJ_ID_USERNAME;
+			ObjUserName.Value.Memory.Memory = (uchar *)User;
+			ObjUserName.Value.Memory.MsZ = (uchar)strlen(User);
+			WriteObject(&Browser, ObjUserName);
+
+			MD5_Init(&Context);
+			MD5_Update(&Context, User, (ulong)strlen(User));
+			MD5_Update(&Context, CONCAT_SALT, (ulong)strlen(CONCAT_SALT));
+			MD5_Update(&Context, Pass, (ulong)strlen(Pass));
+			MD5_Final(MD5Result, &Context);
+
+			ObjSharedSecret.Family = OBJ_FAMILY_BLOB;
+			ObjSharedSecret.Id = OBJ_ID_USERPASS;
+			ObjSharedSecret.Value.Memory.Memory = (uchar *)MD5Result;
+			ObjSharedSecret.Value.Memory.MsZ = MD5_DIGEST_LENGTH;
+			WriteObject(&Browser, ObjSharedSecret);
+
+			*Browser++ = RAW_PARAMS;
+			*Browser++ = 0x05;
+
+			ObjHash.Family = OBJ_FAMILY_NBR;
+			ObjHash.Id = OBJ_ID_HASH;
+			ObjHash.Value.Nbr = htonl(HashList[HashIdx]);
+			WriteObject(&Browser, ObjHash);
+
+			PlatForm = PlatFormSpecific();
+
+			ObjPlatForm.Family = OBJ_FAMILY_TABLE;
+			ObjPlatForm.Id = OBJ_ID_PLATFORM;	/* Skype 5: 0x3A */
+			memcpy_s(ObjPlatForm.Value.Table, sizeof(ObjPlatForm.Value.Table), (uchar *)&PlatForm, sizeof(ObjPlatForm.Value.Table));
+			WriteObject(&Browser, ObjPlatForm);
+
+			ObjUserName.Family = OBJ_FAMILY_STRING;
+			ObjUserName.Id = OBJ_ID_USERNAME;
+			ObjUserName.Value.Memory.Memory = (uchar *)User;
+			ObjUserName.Value.Memory.MsZ = (uchar)strlen(User);
+			WriteObject(&Browser, ObjUserName);
+
+			ObjVer.Family = OBJ_FAMILY_STRING;
+			ObjVer.Id = OBJ_ID_VERSION;
+			ObjVer.Value.Memory.Memory = (uchar *)VER_STR;
+			ObjVer.Value.Memory.MsZ = (uchar)strlen(VER_STR);
+			WriteObject(&Browser, ObjVer);
+
+			ObjPubAddr.Family = OBJ_FAMILY_NBR;
+			ObjPubAddr.Id = OBJ_ID_PUBADDR;
+			ObjPubAddr.Value.Nbr = htonl(my_public_ip);
+			WriteObject(&Browser, ObjPubAddr);
+
+			Size = (uint)(Browser - MarkObjL);
+			HSHeader->ResponseLen = htons((ushort)Size + 0x02);
+
+			Idx = 0;
+			ZeroMemory(ivec, AES_BLOCK_SIZE);
+			ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
+			AES_ctr128_encrypt(MarkObjL, MarkObjL, Size, &AesKey, ivec, ecount_buf, &Idx);
+
+			Crc = crc32(MarkObjL, Size, -1);
+			*Browser++ = *((uchar *)(&Crc) + 0);
+			*Browser++ = *((uchar *)(&Crc) + 1);
+		}
+
+		Size = (uint)(Browser - Blob);
+		
+		if (SendPacketTCP(ESSock, *CurES, Blob, Size, HTTPS_PORT, &Connected))
+			printf("GET_HASH_DETAILS Response Got (%d bytes)..\n\n", RecvBufferSz);
+		else
+		{
+			printf("GET_HASH_DETAILS :'(..\n");
 			return ;
 		}
 
-		Idx = 0;
-		ZeroMemory(ivec, AES_BLOCK_SIZE);
-		ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
-		ivec[3] = 0x01;
-		ivec[7] = 0x01;
-		((uint *)ivec)[3] = htonl(IvecIdx << 0x10);
-		AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
-		IvecIdx++;
-
-		uchar		*Buffer;
-		uint		BSize;
-		SResponse	Response;
-
-		Buffer = RecvBuffer + AESsZ;
-		BSize = htons(HSHeader->ResponseLen) + sizeof(HttpsPacketHeader);
-		Response.Objs = NULL;
-		Response.NbObj = 0;
-		while ((int)BSize > 0)
+		int AESsZ = 0;
+		while (AESsZ < RecvBufferSz)
 		{
-			MainArchResponseManager(&Buffer, &BSize, &Response);
-			Buffer += 2;
-		}
-
-		char		Type = 0;
-		uchar		*DisplayName = NULL;
-		uchar		*InternalName = NULL;
-		Memory_U	AuthCert;
-		AuthCert.Memory = NULL;
-		AuthCert.MsZ = 0;
-		int			BuddyStatus = 0;
-		Contact		CurC;
-
-		ZeroMemory(&CurC, sizeof(CurC));
-		CurC.Locations = new list<CLocation>;
-		for (Idx = 0; Idx < Response.NbObj; Idx++)
-		{
-			switch (Response.Objs[Idx].Id)
+			HSHeader = (HttpsPacketHeader *)(RecvBuffer + AESsZ);
+			if (strncmp((const char *)HSHeader->MAGIC, HTTPS_HSRR_MAGIC, strlen(HTTPS_HSRR_MAGIC)))
 			{
-			case OBJ_ID_ESAUTHANSWR:
-				printf("Obselete authentification auth response..\n");
-				break;
-			case OBJ_ID_DISPLAYNAME:
-				uchar	*DName;
+				printf("Bad Response..\n");
+				return ;
+			}
 
-				DName = Response.Objs[Idx].Value.Memory.Memory;
-				Type = *DName;
-				switch (*DName)
+			Idx = 0;
+			ZeroMemory(ivec, AES_BLOCK_SIZE);
+			ZeroMemory(ecount_buf, AES_BLOCK_SIZE);
+			ivec[3] = 0x01;
+			ivec[7] = 0x01;
+			((uint *)ivec)[3] = htonl(IvecIdx << 0x10);
+			AES_ctr128_encrypt(RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), RecvBuffer + AESsZ + sizeof(HttpsPacketHeader), htons(HSHeader->ResponseLen) - 0x02, &AesKey, ivec, ecount_buf, &Idx);
+			IvecIdx++;
+
+			uchar		*Buffer;
+			uint		BSize;
+			SResponse	Response;
+
+			Buffer = RecvBuffer + AESsZ;
+			BSize = htons(HSHeader->ResponseLen) + sizeof(HttpsPacketHeader);
+			Response.Objs = NULL;
+			Response.NbObj = 0;
+			while ((int)BSize > 0)
+			{
+				MainArchResponseManager(&Buffer, &BSize, &Response);
+				Buffer += 2;
+			}
+
+			char		Type = 0, pType = 0;
+			uchar		*DisplayName = NULL;
+			uchar		*InternalName = NULL;
+			Memory_U	AuthCert;
+			AuthCert.Memory = NULL;
+			AuthCert.MsZ = 0;
+			int			BuddyStatus = 0;
+			Contact		CurC;
+
+			ZeroMemory(&CurC, sizeof(CurC));
+			CurC.Locations = new list<CLocation>;
+			for (Idx = 0; Idx < Response.NbObj; Idx++)
+			{
+				switch (Response.Objs[Idx].Id)
 				{
-				case 'u':
-					printf("User Contact displayname (%s)..\n", DName + 2);
-					DisplayName = DName + 2;
+				case OBJ_ID_ESAUTHANSWR:
+					printf("Obselete authentification auth response..\n");
 					break;
-				case 'g':
-					printf("Group %s, actually ignored..\n", DName + 2);
-					break;
-				case 'p':
-					if (strcmp((const char *)(DName + 2), "email") == 0)
-						printf("Account email address as Blob..\n");
-					else if (strcmp((const char *)(DName + 2), "avatar") == 0)
-						printf("Avatar as Blob..\n");
-					else
-						printf("Unmanaged p-type contact (%s)..\n", DName + 2);
-					break;
-				default :
-					printf("Unmanaged contact type (%c)..\n", *DName);
-					break;
-				}
-				break;
-			case OBJ_ID_UBLOB:
-				SResponse	BlobR;
-				uchar		*Blob;
+				case OBJ_ID_DISPLAYNAME:
+					uchar	*DName;
 
-				Blob = Response.Objs[Idx].Value.Memory.Memory;
-				ZeroMemory(&BlobR, sizeof(BlobR));
-				BlobR.Objs = NULL;
-				BlobR.NbObj = 0;
-				printf("Contact Blob..\n");
-
-				if (Type == 'p')
-				{
-					Email = Blob;
-					cprintf(FOREGROUND_BLUE, "Our Email : %s\n", Email);
-					break ;
-				}
-
-				ManageObjects(&Blob, Response.Objs[Idx].Value.Memory.MsZ, &BlobR);
-
-				if (BlobR.NbObj == 0)
-				{
-					Email = Blob - 1;
-					printf("Our Email : %s\n", Email);
-				}
-				else
-				{
-					uint LdIdx = 0;
-					for (uint BIdx = 0; BIdx < BlobR.NbObj; BIdx++)
+					DName = Response.Objs[Idx].Value.Memory.Memory;
+					Type = *DName;
+					switch (*DName)
 					{
-						switch (BlobR.Objs[BIdx].Id)
+					case 'u':
+						printf("User Contact displayname (%s)..\n", DName + 2);
+						DisplayName = DName + 2;
+						break;
+					case 'g':
+						printf("Group %s, actually ignored..\n", DName + 2);
+						break;
+					case 'p':
+						if (strcmp((const char *)(DName + 2), "email") == 0)
 						{
-							case OBJ_ID_INTERNALNAM:
-								InternalName = BlobR.Objs[BIdx].Value.Memory.Memory;
-								printf("Contact Internal Name : %s..\n", InternalName);
-								break;
-							case OBJ_ID_BUDDYSTATUS:
-								BuddyStatus = BlobR.Objs[BIdx].Value.Nbr;
-								printf("Contact Buddy Status : %d..(Friend / Pending)\n", BuddyStatus);
-								break;
-							case OBJ_ID_AUTHCERT:
-								AuthCert = BlobR.Objs[BIdx].Value.Memory;
-								printf("Contact Auth Cert Added..\n");
-								
-								uchar	*PostProcessed;
-								char	*Key;
-								uint	PPsZ, KeyIdx, Save;
+							printf("Account email address as Blob..\n");
+							pType = 0;
+						}
+						else if (strcmp((const char *)(DName + 2), "avatar") == 0)
+						{
+							printf("Avatar as Blob..\n");
+							pType = 1;
+						}
+						else if (strcmp((const char *)(DName + 2), "mood") == 0)
+						{
+							printf("Mood text as Blob..\n");
+							pType = 2;
+						}
+						else
+							printf("Unmanaged p-type contact (%s)..\n", DName + 2);
+						break;
+					default :
+						printf("Unmanaged contact type (%c)..\n", *DName);
+						break;
+					}
+					break;
+				case OBJ_ID_UBLOB:
+					SResponse	BlobR;
+					uchar		*Blob;
 
- 								PPsZ = htonl(*(uint *)BlobR.Objs[BIdx].Value.Memory.Memory) - 4;
-								KeyIdx = htonl(*(uint *)(BlobR.Objs[BIdx].Value.Memory.Memory + 4));
-								BlobR.Objs[BIdx].Value.Memory.Memory += 8;
-								BlobR.Objs[BIdx].Value.Memory.MsZ -= 8;
-								
-								SkypeRSA = RSA_new();
-								Key = KeySelect(KeyIdx);
-								BN_hex2bn(&(SkypeRSA->n), Key);
-								BN_hex2bn(&(SkypeRSA->e), "10001");
-								BlobR.Objs[BIdx].Value.Memory.MsZ -= PPsZ;
-								Save = PPsZ;
-								ZeroMemory(UnRSA, 0xFFF);
-								PPsZ = RSA_public_decrypt(PPsZ, BlobR.Objs[BIdx].Value.Memory.Memory, UnRSA, SkypeRSA, RSA_NO_PADDING);
-								RSA_free(SkypeRSA);
+					Blob = Response.Objs[Idx].Value.Memory.Memory;
+					ZeroMemory(&BlobR, sizeof(BlobR));
+					BlobR.Objs = NULL;
+					BlobR.NbObj = 0;
+					printf("Contact Blob..\n");
 
-								memcpy_s(RsaKey, MODULUS_SZ, UnRSA, MODULUS_SZ);
-								
-								int Suite;
+					if (Type == 'p')
+					{
+						switch (pType)
+						{
+						case 0:
+							Email = Blob;
+							cprintf(FOREGROUND_BLUE, "Our Email : %s\n", Email);
+							break;
+						case 1:
+							cprintf(FOREGROUND_BLUE, "Avatar :\n");
+							DumpObj (Response.Objs[Idx]);
+							break;
+						case 2:
+							cprintf(FOREGROUND_BLUE, "Mood Text : %s\n", Blob);
+							break;
+						}
+						break ;
+					}
 
-								Suite = Save - PPsZ;
-								BlobR.Objs[BIdx].Value.Memory.Memory += PPsZ;
-								PostProcessed = FinalizeLoginDatas(UnRSA, &PPsZ, (Suite > 0) ? BlobR.Objs[BIdx].Value.Memory.Memory : NULL, Suite);
-								if (PostProcessed == NULL)
-								{
-									printf("Bad Datas [Credentials] Finalization..\n");
-									break;
-								}
+					ManageObjects(&Blob, Response.Objs[Idx].Value.Memory.MsZ, &BlobR);
 
-								SResponse LoginDatas;
-
-								LoginDatas.Objs = NULL;
-								LoginDatas.NbObj = 0;
-								ManageObjects(&PostProcessed, PPsZ, &LoginDatas);
-
-								for (LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
-								{
-									switch (LoginDatas.Objs[LdIdx].Id)
-									{
-										case OBJ_ID_LDMODULUS:
-											if (LoginDatas.Objs[LdIdx].Family == OBJ_FAMILY_BLOB)
-											{
-												ZeroMemory(RsaKey, MODULUS_SZ);
-												memcpy_s(RsaKey, MODULUS_SZ, LoginDatas.Objs[LdIdx].Value.Memory.Memory, LoginDatas.Objs[LdIdx].Value.Memory.MsZ);
-												break;
-											}
-										default :
-											printf("Non critical Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
-											break;
-									}
-								}
-
-								//Save Contact LoginDatas (Credentials, Expriry, Login etc..)
-
-								SkypeRSA = RSA_new();
-								BN_hex2bn(&(SkypeRSA->n), Bin2HexStr(RsaKey, MODULUS_SZ));
-								BN_hex2bn(&(SkypeRSA->e), "10001");
-								PPsZ = BlobR.Objs[BIdx].Value.Memory.MsZ;
-								BlobR.Objs[BIdx].Value.Memory.MsZ -= PPsZ;
-								Save = PPsZ;
-								ZeroMemory(UnRSA, 0xFFF);
-								PPsZ = RSA_public_decrypt(PPsZ, BlobR.Objs[BIdx].Value.Memory.Memory, UnRSA, SkypeRSA, RSA_NO_PADDING);
-								RSA_free(SkypeRSA);
-
-								Suite = Save - PPsZ;
-								BlobR.Objs[BIdx].Value.Memory.Memory += PPsZ;
-								PostProcessed = FinalizeLoginDatas(UnRSA, &PPsZ, (Suite > 0) ? BlobR.Objs[BIdx].Value.Memory.Memory : NULL, Suite);
-								if (PostProcessed == NULL)
-								{
-									printf("Bad Datas [ContactInfos] Finalization..\n");
-									break;
-								}
-
-								PostProcessed += SHA_DIGEST_LENGTH;
-								PPsZ -= SHA_DIGEST_LENGTH;
-								
-								if (strstr((char *)PostProcessed, (char *)"buddy_authorized"))
-									printf("Buddy Authorized\n");
-								else
-									printf("Buddy UN-Authorized\n");
-								break;
-							default :
-								printf("Non critical Object %d:%d in Blob..\n", BlobR.Objs[BIdx].Family, BlobR.Objs[BIdx].Id);
-								break;
+					if (BlobR.NbObj == 0)
+					{
+						switch (pType)
+						{
+						case 0:
+							Email = Blob - 1;
+							printf("Our Email : %s\n", Email);
+							break;
+						case 1:
+							printf("Avatar\n");
+							break;
+						case 2:
+							printf("Mood Text : %s\n", Blob - 1);
+							break;
 						}
 					}
-				}
-				break;
-			default :
-				printf("Non critical Object %d:%d..\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
-				break;
-			}
-		}
-		if ((Type == 'u') && (DisplayName != NULL) && (InternalName != NULL) && (AuthCert.Memory != NULL) && (AuthCert.MsZ != 0))
-		{
-			CurC.DisplayName = DisplayName;
-			CurC.InternalName = InternalName;
-			CurC.BuddyStatus = BuddyStatus;
-			CurC.AuthCert = AuthCert;
+					else
+					{
+						uint LdIdx = 0;
+						for (uint BIdx = 0; BIdx < BlobR.NbObj; BIdx++)
+						{
+							switch (BlobR.Objs[BIdx].Id)
+							{
+								case OBJ_ID_INTERNALNAM:
+									InternalName = BlobR.Objs[BIdx].Value.Memory.Memory;
+									printf("Contact Internal Name : %s..\n", InternalName);
+									break;
+								case OBJ_ID_BUDDYSTATUS:
+									BuddyStatus = BlobR.Objs[BIdx].Value.Nbr;
+									printf("Contact Buddy Status : %d..(Friend / Pending)\n", BuddyStatus);
+									break;
+								case OBJ_ID_AUTHCERT:
+									AuthCert = BlobR.Objs[BIdx].Value.Memory;
+									printf("Contact Auth Cert Added..\n");
+									
+									uchar	*PostProcessed;
+									char	*Key;
+									uint	PPsZ, KeyIdx, Save;
 
-			CurC.OnLineStatus = -1;
-			Contacts.push(CurC);
+ 									PPsZ = htonl(*(uint *)BlobR.Objs[BIdx].Value.Memory.Memory) - 4;
+									KeyIdx = htonl(*(uint *)(BlobR.Objs[BIdx].Value.Memory.Memory + 4));
+									BlobR.Objs[BIdx].Value.Memory.Memory += 8;
+									BlobR.Objs[BIdx].Value.Memory.MsZ -= 8;
+									
+									SkypeRSA = RSA_new();
+									Key = KeySelect(KeyIdx);
+									BN_hex2bn(&(SkypeRSA->n), Key);
+									BN_hex2bn(&(SkypeRSA->e), "10001");
+									BlobR.Objs[BIdx].Value.Memory.MsZ -= PPsZ;
+									Save = PPsZ;
+									ZeroMemory(UnRSA, 0xFFF);
+									PPsZ = RSA_public_decrypt(PPsZ, BlobR.Objs[BIdx].Value.Memory.Memory, UnRSA, SkypeRSA, RSA_NO_PADDING);
+									RSA_free(SkypeRSA);
+
+									memcpy_s(RsaKey, MODULUS_SZ, UnRSA, MODULUS_SZ);
+									
+									int Suite;
+
+									Suite = Save - PPsZ;
+									BlobR.Objs[BIdx].Value.Memory.Memory += PPsZ;
+									PostProcessed = FinalizeLoginDatas(UnRSA, &PPsZ, (Suite > 0) ? BlobR.Objs[BIdx].Value.Memory.Memory : NULL, Suite);
+									if (PostProcessed == NULL)
+									{
+										printf("Bad Datas [Credentials] Finalization..\n");
+										break;
+									}
+
+									SResponse LoginDatas;
+
+									LoginDatas.Objs = NULL;
+									LoginDatas.NbObj = 0;
+									ManageObjects(&PostProcessed, PPsZ, &LoginDatas);
+
+									for (LdIdx = 0; LdIdx < LoginDatas.NbObj; LdIdx++)
+									{
+										switch (LoginDatas.Objs[LdIdx].Id)
+										{
+											case OBJ_ID_LDMODULUS:
+												if (LoginDatas.Objs[LdIdx].Family == OBJ_FAMILY_BLOB)
+												{
+													ZeroMemory(RsaKey, MODULUS_SZ);
+													memcpy_s(RsaKey, MODULUS_SZ, LoginDatas.Objs[LdIdx].Value.Memory.Memory, LoginDatas.Objs[LdIdx].Value.Memory.MsZ);
+													break;
+												}
+											default :
+												printf("Non critical Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
+												DumpObj(LoginDatas.Objs[LdIdx]);
+												break;
+										}
+									}
+
+									//Save Contact LoginDatas (Credentials, Expriry, Login etc..)
+
+									SkypeRSA = RSA_new();
+									BN_hex2bn(&(SkypeRSA->n), Bin2HexStr(RsaKey, MODULUS_SZ));
+									BN_hex2bn(&(SkypeRSA->e), "10001");
+									PPsZ = BlobR.Objs[BIdx].Value.Memory.MsZ;
+									BlobR.Objs[BIdx].Value.Memory.MsZ -= PPsZ;
+									Save = PPsZ;
+									ZeroMemory(UnRSA, 0xFFF);
+									PPsZ = RSA_public_decrypt(PPsZ, BlobR.Objs[BIdx].Value.Memory.Memory, UnRSA, SkypeRSA, RSA_NO_PADDING);
+									RSA_free(SkypeRSA);
+
+									Suite = Save - PPsZ;
+									BlobR.Objs[BIdx].Value.Memory.Memory += PPsZ;
+									PostProcessed = FinalizeLoginDatas(UnRSA, &PPsZ, (Suite > 0) ? BlobR.Objs[BIdx].Value.Memory.Memory : NULL, Suite);
+									if (PostProcessed == NULL)
+									{
+										printf("Bad Datas [ContactInfos] Finalization..\n");
+										break;
+									}
+
+									PostProcessed += SHA_DIGEST_LENGTH;
+									PPsZ -= SHA_DIGEST_LENGTH;
+									
+									if (strstr((char *)PostProcessed, (char *)"buddy_authorized"))
+										printf("Buddy Authorized\n");
+									else
+										printf("Buddy UN-Authorized\n");
+									break;
+								case OBJ_ID_GROUPID:
+									printf ("Contact Group ID = %08X\n", BlobR.Objs[BIdx].Value.Nbr);
+									break;
+								case OBJ_ID_GROUPNAME:
+									printf ("Contact Group Name = %s\n", BlobR.Objs[BIdx].Value.Memory);
+									break;
+								default :
+									printf("Non critical Object %d:%d in Blob..\n", BlobR.Objs[BIdx].Family, BlobR.Objs[BIdx].Id);
+									DumpObj(BlobR.Objs[BIdx]);
+									break;
+							}
+						}
+					}
+					break;
+				default :
+					printf("Non critical Object %d:%d..\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
+					DumpObj(Response.Objs[Idx]);
+					break;
+				}
+			}
+			if ((Type == 'u') && (DisplayName != NULL) && (InternalName != NULL) && (AuthCert.Memory != NULL) && (AuthCert.MsZ != 0))
+			{
+				CurC.DisplayName = DisplayName;
+				CurC.InternalName = InternalName;
+				CurC.BuddyStatus = BuddyStatus;
+				CurC.AuthCert = AuthCert;
+
+				CurC.OnLineStatus = -1;
+				Contacts.push(CurC);
+			}
+			AESsZ += sizeof(HttpsPacketHeader) + htons(HSHeader->ResponseLen);
 		}
-		AESsZ += sizeof(HttpsPacketHeader) + htons(HSHeader->ResponseLen);
 	}
 	printf("\n\n");
 }

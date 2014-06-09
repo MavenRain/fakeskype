@@ -66,7 +66,7 @@ int		SendHandShake2LS(Host CurLS)
 
 int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 {
-	double				PlatForm;
+	__int64				PlatForm;
 	uchar				AuthBlob[0xFFFF] = {0};
 	uchar				MD5Result[MD5_DIGEST_LENGTH] = {0};
 	uchar				SHAResult[32] = {0};
@@ -364,6 +364,7 @@ int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 						break;
 					default :
 						printf("Non critical Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
+						DumpObj(LoginDatas.Objs[LdIdx]);
 						break;
 				}
 			}
@@ -372,6 +373,7 @@ int	SendAuthentificationBlobLS(Host CurLS, char *User, char *Pass)
 			break;
 		default :
 			printf("Non critical Object %d:%d..\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
+			DumpObj(Response.Objs[Idx]);
 			break;
 		}
 	}

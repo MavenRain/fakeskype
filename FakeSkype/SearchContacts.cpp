@@ -192,6 +192,7 @@ int	SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Se
 							}
 							default :
 							printf("Non critical Object %d:%d..\n", LoginDatas.Objs[LdIdx].Family, LoginDatas.Objs[LdIdx].Id);
+							DumpObj(LoginDatas.Objs[LdIdx]);
 							break;
 					}
 				}
@@ -247,6 +248,7 @@ int	SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Se
 							CLocation		ContactLocation;
 
 							LocationBlob2Location(ContactInfos.Objs[CiIdx].Value.Memory.Memory, &ContactLocation, ContactInfos.Objs[CiIdx].Value.Memory.MsZ);
+showmem(ContactInfos.Objs[CiIdx].Value.Memory.Memory, ContactInfos.Objs[CiIdx].Value.Memory.MsZ);
 							ContactSH->Locations->push_back(ContactLocation);
 							break;
 						default :
@@ -259,7 +261,7 @@ int	SearchContact(Host Session_SN, char *User, Contact *ContactSH, char *User2Se
 				break;
 			default:
 				printf("Non critical Object %d:%d..\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
-				//DumpObj(Response.Objs[Idx]);
+				DumpObj(Response.Objs[Idx]);
 				break;
 			}
 		}
@@ -356,7 +358,7 @@ void	SearchContactList(Host Session_SN, char *User)
 	}
 }
 
-int	InitialPing(Host Session_SN, char *User, Contact *ContactSH, char *User2Search)
+int	InitialPing(CLocation Local_Node, char *User, Contact *ContactSH, char *User2Search)
 {
 	uchar						Request[0xFFF];
 	ProbeHeader					*PHeader;
@@ -370,6 +372,7 @@ int	InitialPing(Host Session_SN, char *User, Contact *ContactSH, char *User2Sear
 	sockaddr_in					LocalBind;
 	SOCKET						SNUDPSock;
 	list<CLocation>::iterator	Location;
+	uint						MyOnlineStatus = STATUS_ONLINE;
 	
 	SNUDPSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	ZeroMemory((char *)&LocalBind, sizeof(LocalBind));
@@ -385,7 +388,7 @@ int	InitialPing(Host Session_SN, char *User, Contact *ContactSH, char *User2Sear
 
 		ContactSN = Location->SNAddr;
 		
-		BaseSz = 0x2F + (int)strlen(User2Search) + (int)strlen(User);
+		BaseSz = 0x26 + Location->BlobSz + Local_Node.BlobSz + (int)strlen(User2Search) + (int)strlen(User);
 
 		ZeroMemory(Request, 0xFFF);
 
@@ -404,30 +407,31 @@ int	InitialPing(Host Session_SN, char *User, Contact *ContactSH, char *User2Sear
 		PRequest += 2;
 
 		*PRequest++ = RAW_PARAMS;
-		WriteValue(&PRequest, 0x05);
+		WriteValue(&PRequest, 0x07);
 
 		ObjNbr.Family = OBJ_FAMILY_NBR;
 		ObjNbr.Id = 0x00;
 		ObjNbr.Value.Nbr = 0x02;
 		WriteObject(&PRequest, ObjNbr);
 
-		uchar	Node[0x0F] = {0};
-		uchar	*Browser = Node;
-
-		*(unsigned int *)Browser = htonl(*(uint *)Location->NodeID);
-		Browser += 4;
-		*(unsigned int *)Browser = htonl(*(uint *)(Location->NodeID + 4));
-		Browser += 4;
-		*Browser++ = Location->UnkN;
-		*(unsigned int *)Browser = inet_addr(ContactSN.ip);
-		Browser += 4;
-		*(unsigned short *)Browser = htons(ContactSN.port);
-		Browser += 2;
-
+		uchar	Node[LOCATION_SZ] = {0};
+		BuildLocationBlob (*Location, Node);
+		// This location blob has the NodeID wrong.. I don't know if this just needs
+		// to be swapped here or if it gets parsed wrong, but until I find out, let's
+		// swap it like in the original code
+		*(unsigned int *)Node = htonl(*(unsigned int *)Node);
+		*(unsigned int *)(Node + 4)= htonl(*(unsigned int *)(Node + 4));
 		ObjNode.Family = OBJ_FAMILY_BLOB;
 		ObjNode.Id = 0x01;
 		ObjNode.Value.Memory.Memory = Node;
-		ObjNode.Value.Memory.MsZ = 0x0F;
+		ObjNode.Value.Memory.MsZ = Location->BlobSz;
+		WriteObject(&PRequest, ObjNode);
+
+		BuildLocationBlob (Local_Node, Node);
+		ObjNode.Family = OBJ_FAMILY_BLOB;
+		ObjNode.Id = 0x0C;
+		ObjNode.Value.Memory.Memory = Node;
+		ObjNode.Value.Memory.MsZ = Local_Node.BlobSz;
 		WriteObject(&PRequest, ObjNode);
 
 		ObjNbr.Family = OBJ_FAMILY_NBR;
@@ -465,8 +469,15 @@ int	InitialPing(Host Session_SN, char *User, Contact *ContactSH, char *User2Sear
 
 		ObjNbr.Family = OBJ_FAMILY_NBR;
 		ObjNbr.Id = 0x04;
-		ObjNbr.Value.Nbr = 0x1E;
+		//ObjNbr.Value.Nbr = 0x1E;
+		ObjNbr.Value.Nbr = 0x1C;
 		WriteObject(&PRequest, ObjNbr);
+
+		ObjNbr.Family = OBJ_FAMILY_NBR;
+		ObjNbr.Id = 0x10;
+		ObjNbr.Value.Nbr = MyOnlineStatus;
+		WriteObject(&PRequest, ObjNbr);
+
 
 		PSize = (uint)(PRequest - Mark);
 
@@ -498,6 +509,9 @@ int	InitialPing(Host Session_SN, char *User, Contact *ContactSH, char *User2Sear
 			Response.NbObj = 0;
 			UDPResponseManager(&Browser, (uint *)&RecvBufferSz, &Response);
 
+			// FIXME: On some contacts, I'm getting 0x03 back when they are online..
+			// I also once got 0x1B3. Therefore If don't know how to handle these replies, as they
+			// Also seem legit to me. 
 			if (Response.Cmd == 0x293)
 			{
 				Location->OnLineNode = 1;
@@ -518,7 +532,26 @@ Skip:
 	return (Found);
 }
 
-void	InitialPingOnLine(Host Session_SN, char *User)
+void TestInitialPing(CLocation Local_Node)
+{
+	// Pinging Node : 0x76f2bb31922892e3-1-l192.168.210.35:46573-s213.199.179.152:40001
+	Contact c;
+	CLocation		ContactLocation = {0};
+
+	ContactLocation.bHasPU = 1;
+	memcpy (ContactLocation.NodeID, "\x31\xbb\xf2\x76\xe3\x92\x28\x92", sizeof(ContactLocation.NodeID));
+	strcpy (ContactLocation.PVAddr.ip, "192.168.210.35");
+	ContactLocation.PVAddr.port = 46573;
+	strcpy (ContactLocation.SNAddr.ip, "213.199.179.152");
+	ContactLocation.SNAddr.port = 40001;
+	ContactLocation.BlobSz = 0x15;
+
+	c.Locations = new list<CLocation>;
+	c.Locations->push_back(ContactLocation);
+	InitialPing(Local_Node, "XXXXXX", &c, "XXXXXX");
+}
+
+void	InitialPingOnLine(CLocation Local_Node, char *User)
 {
 	size_t		ContactSz = Contacts.size();
 	Contact		*CurContact;
@@ -531,7 +564,7 @@ void	InitialPingOnLine(Host Session_SN, char *User)
 		if (CurContact->OnLineStatus == 0)
 		{
 			printf("Initial Pinging Contact : %s\n", (CurContact->RealDName) ? (CurContact->RealDName) : (char *)(CurContact->InternalName));
-			if (InitialPing(Session_SN, User, CurContact, (char *)(CurContact->InternalName)))
+			if (InitialPing(Local_Node, User, CurContact, (char *)(CurContact->InternalName)))
 			{
 				printf("%s Online..\n", (char *)(CurContact->InternalName));
 				OneOnline = 1;

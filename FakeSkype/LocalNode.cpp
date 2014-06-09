@@ -29,22 +29,15 @@ uint	 GetUpTime()
 
 void	 InitNodeId()
 {
-	uint Up, Down;
-
-	Up = BytesRandom();
-	Down = BytesRandom();
-
-	// FIXME : To Salt With <ProductID, C:\ Volume Serial Number, DiskIdentifier>
-	memcpy_s(NodeID, NODEID_SZ, (uchar *)&Up, sizeof(Up));
-	memcpy_s(NodeID + 4, NODEID_SZ - 4, (uchar *)&Down, sizeof(Down));
+	*(__int64*)NodeID = BytesRandomI64();
 	
 	/*printf("NodeID : \n");
 	showmem(NodeID, NODEID_SZ);
 	printf("\n");*/
 
 	//FIXED NODEID
-
-	memcpy_s(NodeID, NODEID_SZ, "\x49\x63\xff\xee\xe0\x5c\x9d\xf8", NODEID_SZ);
+	//memcpy_s(NodeID, NODEID_SZ, "\x49\x63\xff\xee\xe0\x5c\x9d\xf8", NODEID_SZ);
+	memcpy_s(NodeID, NODEID_SZ, "\x97\xca\xb1\x72\x06\xf6\x72\xb4", NODEID_SZ);
 }
 
 uchar	 *GetNodeId()

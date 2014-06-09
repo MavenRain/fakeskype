@@ -486,7 +486,7 @@ int	PeerAuth(Host Relay)
 	ObjNbr.Value.Nbr = SessionProposal->SessID;
 	WriteObject(&Browser, ObjNbr);
 
-	BuildLocationBlob(Session_SN, &Buffer[0]);
+	BuildLocationBlob(Session_Node, &Buffer[0]);
 
 	ObjLocation.Family = OBJ_FAMILY_BLOB;
 	ObjLocation.Id = 0x01;
@@ -686,6 +686,7 @@ int	PeerAuth(Host Relay)
 				break;
 			default :
 				printf("Non critical Object %d:%d..\n", Response.Objs[Idx].Family, Response.Objs[Idx].Id);
+				DumpObj(Response.Objs[Idx]);
 				break;
 			}
 		}

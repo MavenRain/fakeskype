@@ -11,6 +11,14 @@
 
 #include "Random.h"
 
+/* Use GetAdaptersInfo in FillMiscDatas which is the case in Skype 5 client.
+   However only 5 values are sent on login for MISCinfo, so I don't kow
+   what it is used for yet... :-/
+   Therefore in the meantime leave this disabled until we found out what
+   it is good for...
+ */
+//#define SKYPE5		
+
 static BYTE		RandomSeed[SHA_DIGEST_LENGTH] = {0};
 static uchar	SessionKey[SK_SZ] = {0};
 
@@ -25,7 +33,7 @@ unsigned int	BytesSHA1(BYTE *Data, DWORD Length)
 	return *(unsigned int *)Buffer;
 }
 
-double			BytesSHA1d(BYTE *Data, DWORD Length)
+unsigned __int64 BytesSHA1I64(BYTE *Data, DWORD Length)
 {
 	BYTE		Buffer[SHA_DIGEST_LENGTH];
 	SHA_CTX		Context;
@@ -33,63 +41,50 @@ double			BytesSHA1d(BYTE *Data, DWORD Length)
 	SHA1_Init(&Context);
 	SHA1_Update(&Context, Data, Length);
 	SHA1_Final(Buffer, &Context);
-	return *(double *)Buffer;
+	return *(__int64 *)Buffer;
 }
+
+static void FillRndBuffer(LPBYTE Buffer)
+{
+	SHA_CTX		Context;
+	int			idx;
+
+	idx = 0;
+	memcpy(Buffer, RandomSeed, SHA_DIGEST_LENGTH);
+	idx += sizeof(RandomSeed);
+	GlobalMemoryStatus((LPMEMORYSTATUS)&Buffer[idx]);
+	idx += sizeof(MEMORYSTATUS);
+	UuidCreate((UUID *)&Buffer[idx]);
+	idx += sizeof(UUID);
+	GetCursorPos((LPPOINT)&Buffer[idx]);
+	idx += sizeof(POINT);
+	*(DWORD *)(Buffer + idx) = GetTickCount();
+	*(DWORD *)(Buffer + idx + 4) = GetMessageTime();
+	*(DWORD *)(Buffer + idx + 8) = GetCurrentThreadId();
+	*(DWORD *)(Buffer + idx + 12) = GetCurrentProcessId();
+	idx += 16;
+	QueryPerformanceCounter((LARGE_INTEGER *)&Buffer[idx]);
+	SHA1_Init(&Context);
+	SHA1_Update(&Context, Buffer, 0x464);
+	SHA1_Update(&Context, "additional salt...", 0x13);
+	SHA1_Final(RandomSeed, &Context);
+}
+
 
 unsigned int	BytesRandom()
 {
 	BYTE		Buffer[0x464];
-	SHA_CTX		Context;
-	int			idx;
 
-	idx = 0;
-	memcpy(Buffer, RandomSeed, SHA_DIGEST_LENGTH);
-	idx += sizeof(RandomSeed);
-	GlobalMemoryStatus((LPMEMORYSTATUS)&Buffer[idx]);
-	idx += sizeof(MEMORYSTATUS);
-	UuidCreate((UUID *)&Buffer[idx]);
-	idx += sizeof(UUID);
-	GetCursorPos((LPPOINT)&Buffer[idx]);
-	idx += sizeof(POINT);
-	*(DWORD *)(Buffer + idx) = GetTickCount();
-	*(DWORD *)(Buffer + idx + 4) = GetMessageTime();
-	*(DWORD *)(Buffer + idx + 8) = GetCurrentThreadId();
-	*(DWORD *)(Buffer + idx + 12) = GetCurrentProcessId();
-	idx += 16;
-	QueryPerformanceCounter((LARGE_INTEGER *)&Buffer[idx]);
-	SHA1_Init(&Context);
-	SHA1_Update(&Context, Buffer, 0x464);
-	SHA1_Update(&Context, "additional salt...", 0x13);
-	SHA1_Final(RandomSeed, &Context);
+	FillRndBuffer(Buffer);
 	return BytesSHA1(Buffer, 0x464);
 }
 
-double		BytesRandomD()
+__int64 BytesRandomI64()
 {
 	BYTE		Buffer[0x464];
-	SHA_CTX		Context;
-	int			idx;
 
-	idx = 0;
-	memcpy(Buffer, RandomSeed, SHA_DIGEST_LENGTH);
-	idx += sizeof(RandomSeed);
-	GlobalMemoryStatus((LPMEMORYSTATUS)&Buffer[idx]);
-	idx += sizeof(MEMORYSTATUS);
-	UuidCreate((UUID *)&Buffer[idx]);
-	idx += sizeof(UUID);
-	GetCursorPos((LPPOINT)&Buffer[idx]);
-	idx += sizeof(POINT);
-	*(DWORD *)(Buffer + idx) = GetTickCount();
-	*(DWORD *)(Buffer + idx + 4) = GetMessageTime();
-	*(DWORD *)(Buffer + idx + 8) = GetCurrentThreadId();
-	*(DWORD *)(Buffer + idx + 12) = GetCurrentProcessId();
-	idx += 16;
-	QueryPerformanceCounter((LARGE_INTEGER *)&Buffer[idx]);
-	SHA1_Init(&Context);
-	SHA1_Update(&Context, Buffer, 0x464);
-	SHA1_Update(&Context, "additional salt...", 0x13);
-	SHA1_Final(RandomSeed, &Context);
-	return BytesSHA1d(Buffer, 0x464);
+	FillRndBuffer(Buffer);
+	return BytesSHA1I64(Buffer, 0x464);
 }
 
 unsigned short		BytesRandomWord()
@@ -105,68 +100,125 @@ unsigned short		BytesRandomWord()
 
 unsigned char	    *GetNodeId();
 
-double				PlatFormSpecific()
+BOOL QueryRegValue(HKEY hKey, LPCTSTR lpSubKey, LPBYTE lpValue, LPDWORD pCbValue)
+{
+	char *pSubKey, *pTok, szKey[256]={0};
+	DWORD dwIndex;
+	LONG ret;
+
+	if ( !lpSubKey || !*lpSubKey ) return FALSE;
+	if ( *lpSubKey != '*' )
+	{
+		for (pSubKey = (char*)lpSubKey; *pSubKey != '*'; pSubKey = pTok + 1)
+			if (!(pTok = strchr(pSubKey, '\\'))) break;
+		if ( pSubKey > lpSubKey )
+		{
+			if ( pSubKey - lpSubKey == 1 ) return FALSE;
+			strncpy (szKey, lpSubKey, pSubKey - lpSubKey - 1);
+			if (RegOpenKeyA (hKey, szKey, &hKey) == ERROR_SUCCESS)
+			{
+				ret = QueryRegValue(hKey, pSubKey, lpValue, pCbValue);
+				RegCloseKey(hKey);
+				return ret;
+			}
+			return FALSE;
+		}
+		if ( *lpSubKey != '*' ) return RegQueryValueExA (hKey, lpSubKey, NULL, NULL, lpValue, pCbValue) == ERROR_SUCCESS;
+	}
+	if (lpSubKey[1] != '\\')
+		return RegQueryValueExA (hKey, lpSubKey, NULL, NULL, lpValue, pCbValue) == ERROR_SUCCESS;
+	for (dwIndex = 0; (ret = RegEnumKeyA (hKey, dwIndex, szKey, sizeof(szKey))) == ERROR_SUCCESS; dwIndex++)
+	{
+		char szSubKey[256];
+
+		sprintf (szSubKey, "%s%s", szKey, lpSubKey+1);
+		if (QueryRegValue (hKey, szSubKey, lpValue, pCbValue)) break;
+	}
+	return ret == ERROR_SUCCESS;
+}
+
+#ifdef SKYPE5
+#include <IpHlpApi.h>
+#pragma comment (lib,"iphlpapi.lib")
+unsigned __int64 FillAdaptersInfo(unsigned int *pRet2)
+{
+	IP_ADAPTER_INFO AdapterInfo[16], *pAdapter;
+	ULONG uBufLen = sizeof(AdapterInfo);
+	__int64 ret = 0;
+
+	if (GetAdaptersInfo(AdapterInfo, &uBufLen) == ERROR_SUCCESS)
+	{
+		for (pAdapter = AdapterInfo; pAdapter; pAdapter = pAdapter->Next)
+		{
+			if (pAdapter->AddressLength == 6 && pAdapter->Type == MIB_IF_TYPE_ETHERNET)
+				ret ^= BytesSHA1I64(pAdapter->Address, pAdapter->AddressLength);
+		}
+	}
+	return ret;
+}
+#endif
+
+__int64 PlatFormSpecific()
 {
 	BYTE		Buffer[0x400];
-	HKEY		rKey;
 	DWORD		BufSz = 0x400;
-	int			Idx, Used, ret;
+	int			Idx, Used;
 
 	Used = Idx = 0;
-	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows\\CurrentVersion", 0, KEY_QUERY_VALUE, &rKey);
-	if (ret)
-		return (0);
-	ret = RegQueryValueExA(rKey, "ProductId", NULL, NULL, (LPBYTE)Buffer, &BufSz);
-	if (ret)
-		return (0);
-	RegCloseKey(rKey);
 
-	Used += BufSz;
-	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\9\\DiskController\\0\\DiskPeripheral\\0", 0, KEY_QUERY_VALUE, &rKey);
-	if (ret)
-		return (0);
-	ret = RegQueryValueExA(rKey, "Identifier", NULL, NULL, (LPBYTE)Buffer + Used, &BufSz);
-	if (ret)
-		return (0);
-	RegCloseKey(rKey);
-
-	Used += BufSz;
-	ret = GetVolumeInformationA("C:\\", 0, 0, (LPDWORD)(Buffer + Used), 0, 0, 0, 0);
-	return BytesSHA1d(Buffer, Used + 0x04);
+	if (QueryRegValue(HKEY_LOCAL_MACHINE, 
+		"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ProductId",
+		(LPBYTE)Buffer, &BufSz))
+		Used += BufSz;
+	BufSz = sizeof(Buffer)-Used;
+	if (QueryRegValue(HKEY_LOCAL_MACHINE, 
+		"HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\*\\DiskController\\*\\DiskPeripheral\\*\\Identifier",
+		(LPBYTE)Buffer + Used, &BufSz))
+		Used += BufSz;
+#ifdef SKYPE5
+	else 
+	{
+		*((unsigned int*)&Buffer[Used]) = FillAdaptersInfo((unsigned int*)&Buffer[Used+4]);
+		Used+=8;
+	}
+#endif
+	if (GetVolumeInformationA("C:\\", 0, 0, (LPDWORD)(Buffer + Used), 0, 0, 0, 0))
+		Used+=4;
+	return BytesSHA1I64(Buffer, Used);
 }
 
 void				FillMiscDatas(unsigned int *Datas)
 {
 	BYTE		Buffer[0x400];
-	HKEY		rKey;
 	DWORD		BufSz = 0x400;
 	int			ret;
-	double		PlatForm;
+	__int64 PlatForm;
 
 	PlatForm = PlatFormSpecific();
 	Datas[0] = *(unsigned int *)&PlatForm;
 	Datas[1] = *(unsigned int *)GetNodeId();
 
-	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows\\CurrentVersion", 0, KEY_QUERY_VALUE, &rKey);
-	if (ret)
-		return ;
-	ret = RegQueryValueExA(rKey, "ProductId", NULL, NULL, (LPBYTE)Buffer, &BufSz);
-	if (ret)
-		return ;
-	RegCloseKey(rKey);
+	if (!QueryRegValue(HKEY_LOCAL_MACHINE, 
+		"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ProductId",
+		(LPBYTE)Buffer, &BufSz))
+		return;
 	Datas[2] = BytesSHA1(Buffer, BufSz);
 
-	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\9\\DiskController\\0\\DiskPeripheral\\0", 0, KEY_QUERY_VALUE, &rKey);
-	if (ret)
-		return ;
-	ret = RegQueryValueExA(rKey, "Identifier", NULL, NULL, (LPBYTE)Buffer, &BufSz);
-	if (ret)
-		return ;
-	RegCloseKey(rKey);
+	BufSz = 0x400;
+	if (!QueryRegValue(HKEY_LOCAL_MACHINE, 
+		"HARDWARE\\DESCRIPTION\\System\\MultifunctionAdapter\\*\\DiskController\\*\\DiskPeripheral\\*\\Identifier",
+		(LPBYTE)Buffer, &BufSz))
+		return;
 	Datas[3] = BytesSHA1(Buffer, BufSz);
 
 	ret = GetVolumeInformationA("C:\\", 0, 0, (LPDWORD)Buffer, 0, 0, 0, 0);
 	Datas[4] = BytesSHA1(Buffer, 0x04);
+
+#ifdef SKYPE5
+	__int64 AI = FillAdaptersInfo(NULL);
+	Datas[5] = *(DWORD*)&AI;
+#endif
+
 }
 
 void	SpecialSHA(uchar *SessionKey, uint SkSz, uchar *SHAResult, uint ResSz)

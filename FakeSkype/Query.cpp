@@ -94,7 +94,7 @@ void	UDPTestReply(Host Session_SN, ushort Reply2ID, Host Tested)
 	*PRequest++ = RAW_PARAMS;
 	WriteValue(&PRequest, 0x03);
 
-	BuildLocationBlob(Session_SN, &Buffer[0]);
+	BuildLocationBlob(Session_Node, &Buffer[0]);
 
 	ObjLocation.Family = OBJ_FAMILY_BLOB;
 	ObjLocation.Id = 0x00;

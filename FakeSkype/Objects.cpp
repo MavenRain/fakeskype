@@ -616,6 +616,7 @@ const char *DecodeObjId(uint family, uint ObjId)
 		X(OBJ_ID_CIRNAME)
 		X(OBJ_ID_CIREGION)
 		X(OBJ_ID_CIVILLE)
+		X(OBJ_ID_CICOUNTRY)
 		X(OBJ_ID_FWTESTID)
 		X(OBJ_ID_AESPART1)
 	default: return "Unknown";

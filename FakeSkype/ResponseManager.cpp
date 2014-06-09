@@ -46,8 +46,16 @@ void		UDPResponseManager(uchar **Buffer, uint *BufferSz, SResponse *Response)
 	printf("UDP Packet : 0x%x\n", Response->PacketID);
 	if (**Buffer != 0x02)
 	{
-		printf("Not an UDP Obfuscated packet..\n");
-		return ;
+		if (*BufferSz > 0x54B && (**Buffer & 0x0F) == 0x0F && *(*Buffer + 4) == 0x02)
+		{
+			// Some of these "large" packets?
+			*Buffer+=4;
+		}
+		else
+		{
+			printf("Not an UDP Obfuscated packet..\n");
+			return ;
+		}
 	}
 	*Buffer += 1;
 	*Buffer += 8;

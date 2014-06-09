@@ -14,6 +14,6 @@
 
 #include "Common.h"
 
-void	HostScan(Host *Session_SN);
+void		HostScan(CLocation *Local_Node);
 
 #endif /*HOSTSCAN_H*/

@@ -14,7 +14,7 @@
 
 #include "Common.h"
 
-void	BuildLocationBlob(Host Session_SN, uchar *Buffer);
-void	SendPresence(Host Session_SN, char *User);
+void	BuildLocationBlob(CLocation Location, uchar *Buffer);
+void	SendPresence(CLocation Local_Node, char *User);
 
 #endif /*PRESENCE_H*/

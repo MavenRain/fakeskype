@@ -212,7 +212,7 @@ void	BuildBody2Send(Host Relay, SessProp *SessionProposal, uchar **ResponseBuffe
 		EMsgNbr.Value.Nbr = 0x03;
 		WriteObject(&EMsgBrowser, EMsgNbr);
 
-		BuildLocationBlob(Session_SN, &Buffer[0]);
+		BuildLocationBlob(Session_Node, &Buffer[0]);
 
 		EMsgLocation.Family = OBJ_FAMILY_BLOB;
 		EMsgLocation.Id = 0x03;

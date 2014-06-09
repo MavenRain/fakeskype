@@ -9,7 +9,11 @@
 *
 */
 
+#ifdef WIN32
+#include "winsock2.h"
+#endif
 #include "HostScan.h"
+
 
 /*FIXME* IMPLEMENT SKYPE_CMD FUNC TO WRITE CMDZ*/
 
@@ -23,7 +27,7 @@
   See: https://github.com/matthiasbock/OpenSkype/wiki/Super-Nodes
    */
 Host	Hosts[] = {
-					{"111.221.77.155", 33033},
+					{"111.221.74.34", 33033},
 						/*
 				   {"193.88.6.19", 33033},
 				   {"194.165.188.82", 33033},
@@ -259,7 +263,7 @@ void	SubmitPropsNStats(Host CurHost)
 	printf("Props & Stats Submitted..\n");
 }
 
-void	OnClientAccept(Host CurHost)
+void	OnClientAccept(CLocation *Local_Node)
 {
 	uchar		*Browser;
 	SResponse	Response;
@@ -292,7 +296,7 @@ void	OnClientAccept(Host CurHost)
 	switch (Response.Cmd / 8)
 	{
 	case CMD_CLIENT_OK:
-		printf("Client Accepted.. HostScanning Stop.. Connected to %s:%d !\n", CurHost.ip, CurHost.port);
+		printf("Client Accepted.. HostScanning Stop.. Connected to %s:%d !\n", Local_Node->SNAddr.ip, Local_Node->SNAddr.port);
 		printf("INFOS RECEIVED..\n");
 		for (Idx = 0; Idx < Response.NbObj; Idx++)
 		{
@@ -308,6 +312,8 @@ void	OnClientAccept(Host CurHost)
 				printf("Peer Listenning Port : %d\n", Response.Objs[Idx].Value.Nbr);
 				break;
 			case OBJ_ID_PUBNETADDR:
+				Local_Node->PUAddr = Response.Objs[Idx].Value.Addr;
+				Local_Node->bHasPU = 1;
 				printf("My Public Interface : %s:%d\n", Response.Objs[Idx].Value.Addr.ip, Response.Objs[Idx].Value.Addr.port);
 				break;
 			default :
@@ -368,7 +374,7 @@ void	OnClientAccept(Host CurHost)
 					memcpy_s(RecvCopy, 0xFFFF, RecvBuffer, RecvBufferSz);
 					RecvSzCopy = RecvBufferSz;
 
-					SendACK(Response.PacketID, TCPSock, CurHost, HTTPS_PORT, &Connected, &Keys);
+					SendACK(Response.PacketID, TCPSock, Local_Node->SNAddr, HTTPS_PORT, &Connected, &Keys);
 
 					ZeroMemory(RecvBuffer, 0xFFFF);
 					memcpy_s(RecvBuffer, 0xFFFF, RecvCopy, RecvSzCopy);
@@ -418,7 +424,7 @@ void	OnClientAccept(Host CurHost)
 							ZeroMemory(RecvCopy, 0xFFFF);
 							memcpy_s(RecvCopy, 0xFFFF, RecvBuffer, RecvBufferSz);
 							RecvSzCopy = RecvBufferSz;
-							RequestBCM(CurHost, BCM_id);
+							RequestBCM(Local_Node->SNAddr, BCM_id);
 							ZeroMemory(RecvBuffer, 0xFFFF);
 							memcpy_s(RecvBuffer, 0xFFFF, RecvCopy, RecvSzCopy);
 							RecvBufferSz = RecvSzCopy;	
@@ -433,10 +439,10 @@ void	OnClientAccept(Host CurHost)
 			break;
 		}
 	}
-	//SubmitPropsNStats(CurHost);
+	//SubmitPropsNStats(Local_Node->SNAddr);
 }
 
-void	ClientAccept(Host CurHost)
+void	ClientAccept(CLocation *Local_Node)
 {
 	uchar		Request[0xFF] = {0};
 	ReqBody		*PBody;
@@ -498,21 +504,21 @@ void	ClientAccept(Host CurHost)
 	//showmem(Request, (uint)(PRequest - Request));
 	//printf("\n\n");
 
-	if (SendPacketTCP(TCPSock, CurHost, Request, (uint)(PRequest - Request), HTTPS_PORT, &Connected))
+	if (SendPacketTCP(TCPSock, Local_Node->SNAddr, Request, (uint)(PRequest - Request), HTTPS_PORT, &Connected))
 	{
 		printf("Client Accept Response..\n");
 		//showmem(RecvBuffer, RecvBufferSz);
 		//printf("\n\n");
-		OnClientAccept(CurHost);
+		OnClientAccept(Local_Node);
 	}
 	else
 	{
-		printf("No response to client accept request.. Skipping Host %s..\n", CurHost.ip);
+		printf("No response to client accept request.. Skipping Host %s..\n", Local_Node->SNAddr.ip);
 		return ;
 	}
 }
 
-void	ExchangeKeys(Host CurHost, int IsKeyAlreadySent, ushort HandShakeResponseLen)
+void	ExchangeKeys(CLocation *Local_Node, int IsKeyAlreadySent, ushort HandShakeResponseLen)
 {
 	uint	BadSeed = 1;
 	uint	Seed, UpSeed, Idx, SentKeySz;
@@ -574,7 +580,7 @@ EndTest:
 	//showmem(Packet, sizeof(TCPCtrlPacketHeader) + 35);
 	//printf("\n\n");
 
-	if (SendPacketTCP(TCPSock, CurHost, Packet, sizeof(TCPCtrlPacketHeader) + 35, HTTPS_PORT, &Connected))
+	if (SendPacketTCP(TCPSock, Local_Node->SNAddr, Packet, sizeof(TCPCtrlPacketHeader) + 35, HTTPS_PORT, &Connected))
 	{
 		printf("Send Seed Response..\n");
 		//showmem(RecvBuffer, RecvBufferSz);
@@ -590,7 +596,7 @@ EndTest:
 	}
 	else
 	{
-		printf("Skipping Host %s..\n", CurHost.ip);
+		printf("Skipping Host %s..\n", Local_Node->SNAddr.ip);
 		return ;
 	}
 
@@ -614,10 +620,10 @@ EndTest:
 		printf("Bad Key Exchange Response.. Skipping Host..\n");
 		return ;
 	}
-	ClientAccept(CurHost);
+	ClientAccept(Local_Node);
 }
 
-void	HandShake(Host CurHost)
+void	HandShake(CLocation *Local_Node)
 {
 	uchar	HttpsHSPacket[HHSP_SIZE] = {0};
 	uint	Initial;
@@ -632,11 +638,11 @@ void	HandShake(Host CurHost)
 		HttpsHSPacket[Idx] = ((uchar *)&Initial)[3];
 	}
 
-	printf("Sending https HandShake to %s\n", CurHost.ip);
+	printf("Sending https HandShake to %s\n", Local_Node->SNAddr.ip);
 	//showmem(HttpsHSPacket, HHSP_SIZE);
 	//printf("\n\n");
 
-	if (SendPacketTCP(TCPSock, CurHost, HttpsHSPacket, HHSP_SIZE, HTTPS_PORT, &Connected))
+	if (SendPacketTCP(TCPSock, Local_Node->SNAddr, HttpsHSPacket, HHSP_SIZE, HTTPS_PORT, &Connected))
 	{
 		printf("HandShake Response..\n");
 		//showmem(RecvBuffer, RecvBufferSz);
@@ -644,20 +650,20 @@ void	HandShake(Host CurHost)
 	}
 	else
 	{
-		printf("Skipping Host %s..\n", CurHost.ip);
+		printf("Skipping Host %s..\n", Local_Node->SNAddr.ip);
 		return ;
 	}
 	RHeader = (HttpsPacketHeader *)RecvBuffer;
 	if (strncmp((const char *)RHeader->MAGIC, HTTPS_HSR_MAGIC, strlen(HTTPS_HSR_MAGIC)))
 	{
-		printf("Bad Handshake Response.. Skipping Host %s..\n", CurHost.ip);
+		printf("Bad Handshake Response.. Skipping Host %s..\n", Local_Node->SNAddr.ip);
 		return ;
 	}
-	printf("SuperNode Found.. Handing Over.. %s\n", CurHost.ip);
-	ExchangeKeys(CurHost, (htons(RHeader->ResponseLen) + sizeof(HttpsPacketHeader) != RecvBufferSz), htons(RHeader->ResponseLen));
+	printf("SuperNode Found.. Handing Over.. %s\n", Local_Node->SNAddr.ip);
+	ExchangeKeys(Local_Node, (htons(RHeader->ResponseLen) + sizeof(HttpsPacketHeader) != RecvBufferSz), htons(RHeader->ResponseLen));
 }
 
-void	ManageObfuscatedPacket(Host CurHost)
+void	ManageObfuscatedPacket(CLocation *Local_Node)
 {
 	struct in_addr	PublicIP;
 	PacketBody		*Packet;
@@ -666,7 +672,7 @@ void	ManageObfuscatedPacket(Host CurHost)
 	Host			NewHost;
 
 	PublicIP.S_un.S_addr = my_public_ip;
-	if (UnCipherObfuscated(RecvBuffer, RecvBufferSz, inet_ntoa(PublicIP), CurHost.ip) == 0)
+	if (UnCipherObfuscated(RecvBuffer, RecvBufferSz, inet_ntoa(PublicIP), Local_Node->SNAddr.ip) == 0)
 	{
 		printf("Unable to uncipher Packet..\n");
 		return ;
@@ -686,7 +692,7 @@ void	ManageObfuscatedPacket(Host CurHost)
 		i = RecvBufferSz - sizeof(CipheredPacketHeader) - sizeof(PacketBody);
 		if ((Packet->Unknown_COOKIE == 0x42) && ((SNList[3] == 0x27) || SNList[3] == 0x77))
 		{
-			printf("Probe Refused by %s:%d, but New SuperNodes Discovered\n", CurHost.ip, CurHost.port);
+			printf("Probe Refused by %s:%d, but New SuperNodes Discovered\n", Local_Node->SNAddr.ip, Local_Node->SNAddr.port);
 			SNList = SNList + ((SNList[3] == 0x27) ? 4 : 6);
 			i -= (SNList[3] == 0x27) ? 4 : 6;
 			while (i > 0)
@@ -705,8 +711,8 @@ void	ManageObfuscatedPacket(Host CurHost)
 			printf("Unable to analyze Object List..\n");
 		break;
 	case CMD_PROBE_OK:
-		printf("Probe Accepted by %s:%d\n", CurHost.ip, CurHost.port);
-		HandShake(CurHost);
+		printf("Probe Accepted by %s:%d\n", Local_Node->SNAddr.ip, Local_Node->SNAddr.port);
+		HandShake(Local_Node);
 		break;
 	default:
 		printf("Unmanaged Cmd 0x%x..\n", *(uchar *)&Packet->Cmd / 8);
@@ -714,9 +720,8 @@ void	ManageObfuscatedPacket(Host CurHost)
 	}
 }
 
-void		HostScan(Host *Session_SN)
+void		HostScan(CLocation *Local_Node)
 {
-	Host	CurHost;
 	uchar	Probe[65536] = {0};
 	uint	Size, DoResend, ReUse;
 
@@ -731,19 +736,21 @@ void		HostScan(Host *Session_SN)
 	TCPSock = socket(AF_INET, SOCK_STREAM, 0);
 	setsockopt(TCPSock, SOL_SOCKET, SO_REUSEADDR, (const char *)&ReUse, sizeof(ReUse));
 
+	ZeroMemory(Local_Node, sizeof(CLocation));
 	ZeroMemory((char *)&LocalBind, sizeof(LocalBind));
 	LocalBind.sin_family = AF_INET;
 	LocalBind.sin_addr.s_addr = htonl(INADDR_ANY);
 	LocalBind.sin_port = htons(DEF_LPORT);
 	bind(UDPSock, (struct sockaddr *)&LocalBind, sizeof(LocalBind));
+	Local_Node->BlobSz = LOCATION_SZ;
 
 	while (!HostsQueue.empty())
 	{
-		CurHost = HostsQueue.front();
-		
+		Local_Node->SNAddr = HostsQueue.front();
+	
 		if (DoResend)
 		{
-			if (ResendProbe(CurHost, Probe))
+			if (ResendProbe(Local_Node->SNAddr, Probe))
 			{				
 				//showmem(RecvBuffer, RecvBufferSz);
 				//printf("\n\n");
@@ -752,14 +759,34 @@ void		HostScan(Host *Session_SN)
 		}
 		else
 		{
-			Size = ForgeProbe(Probe, CurHost);
+			struct sockaddr_in client;
 
-			printf("Sending probe to host : %s:%d..\n", CurHost.ip, CurHost.port);
+			Size = ForgeProbe(Probe, Local_Node->SNAddr);
+
+			printf("Sending probe to host : %s:%d..\n", Local_Node->SNAddr.ip, Local_Node->SNAddr.port);
 			//showmem(Probe, Size);
 			//printf("\n\n");
 
-			if (SendPacket(UDPSock, CurHost, Probe, Size))
+			if (SendPacket(UDPSock, Local_Node->SNAddr, Probe, Size, &client))
 			{
+				struct sockaddr_in server={0};
+#ifdef WIN32
+				DWORD br;
+
+				if (WSAIoctl (UDPSock, SIO_ROUTING_INTERFACE_QUERY, &client, sizeof(client), &server, sizeof(server), &br, 0, 0)
+					== SOCKET_ERROR)
+				{
+					printf ("Error getting LAN interface: %08X\n", WSAGetLastError());
+				}
+#else
+				int server_len = sizeof(server);
+				getsockname (UDPSock, (struct sockaddr*)&server, &server_len);
+#endif
+				ZeroMemory(&Local_Node->PVAddr, sizeof(Local_Node->PVAddr));
+				memcpy_s(Local_Node->PVAddr.ip, MAX_IP_LEN + 1, inet_ntoa(server.sin_addr), MAX_IP_LEN);
+				Local_Node->PVAddr.port = ntohs(LocalBind.sin_port);
+				printf ("Our LAN Interface: %s:%d\n", Local_Node->PVAddr.ip, Local_Node->PVAddr.port);
+
 				//showmem(RecvBuffer, RecvBufferSz);
 				//printf("\n\n");
 			}
@@ -775,7 +802,7 @@ void		HostScan(Host *Session_SN)
 			break;
 		case PKT_TYPE_OBFSUK:
 			printf("Obfuscated Packet received..\n");
-			ManageObfuscatedPacket(CurHost);
+			ManageObfuscatedPacket(Local_Node);
 			break;
 		default:
 			printf("UnManaged Packet type..\n");
@@ -784,11 +811,9 @@ void		HostScan(Host *Session_SN)
 PassEnd:
 		if (!Scan)
 		{
-			ZeroMemory(Session_SN->ip, MAX_IP_LEN + 1);
-			memcpy_s(Session_SN->ip, MAX_IP_LEN + 1, CurHost.ip, MAX_IP_LEN);
-			Session_SN->port = CurHost.port;
-			Session_SN->Connected = Connected;
-			Session_SN->socket = TCPSock;
+			Local_Node->SNAddr.Connected = Connected;
+			Local_Node->SNAddr.socket = TCPSock;
+			memcpy_s(Local_Node->NodeID, sizeof(Local_Node->NodeID), GetNodeId(), NODEID_SZ);
 			closesocket(UDPSock);
 
 			return ;
